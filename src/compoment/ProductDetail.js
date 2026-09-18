@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { addCartItem, getCart } from "../lib/store";
+import { useNavigate, useParams } from "react-router-dom";
+import { addCartItem, getCart, getUser } from "../lib/store";
 import Toast from "./Toast";
 import './ProductDetail.css'; // Import file CSS
 
 const ProductDetail = () => {
   const { id } = useParams(); // Lấy id sản phẩm từ URL
+  const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [selectedColor, setSelectedColor] = useState("");
   const [quantity, setQuantity] = useState(1);
@@ -124,6 +125,11 @@ const ProductDetail = () => {
   };
 
   const handleSubmitOrder = () => {
+    if (!getUser()) {
+      setIsCustomerInfoVisible(false);
+      navigate(`/login`, { state: { from: `/product-detail/${id}` } });
+      return;
+    }
     if (!customerInfo.name || !customerInfo.email || !customerInfo.phone) {
       setToast({ message: "Vui lòng điền đầy đủ thông tin", type: "error" });
       return;
@@ -136,6 +142,14 @@ const ProductDetail = () => {
     setToast({ message: "Đã thêm sản phẩm vào giỏ hàng", type: "success" });
     setIsCustomerInfoVisible(false); // Ẩn form và reset thông tin
     setCustomerInfo({ name: "", email: "", phone: "" });
+  };
+
+  const handleBuyNow = () => {
+    if (!getUser()) {
+      navigate(`/login`, { state: { from: `/product-detail/${id}` } });
+      return;
+    }
+    setIsCustomerInfoVisible(true);
   };
 
   if (!product) return <div>Loading...</div>;
@@ -173,7 +187,7 @@ const ProductDetail = () => {
           </div>
 
           {/* Nút Mua ngay */}
-          <div className="product-detail-actions"><button className="buy-now" onClick={() => setIsCustomerInfoVisible(true)}>Mua ngay</button><button className="add-to-cart" onClick={() => handleAddToCart(product)}>Thêm vào giỏ hàng</button></div>
+          <div className="product-detail-actions"><button className="buy-now" onClick={handleBuyNow}>Mua ngay</button><button className="add-to-cart" onClick={() => handleAddToCart(product)}>Thêm vào giỏ hàng</button></div>
         </div>
       </div>
       {/* Form thông tin khách hàng */}

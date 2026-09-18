@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import "./LoginForm.css";
 
 function LoginForm() {
@@ -11,6 +11,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   // ==============================
   // XỬ LÝ ĐĂNG NHẬP
@@ -73,8 +74,8 @@ function LoginForm() {
 
       alert("Đăng nhập thành công!");
 
-      // Chuyển đến trang Home
-      navigate("/home");
+      const destination = location.state?.from || "/home";
+      navigate(destination, { replace: true });
     }, 700);
   };
 
@@ -94,6 +95,12 @@ function LoginForm() {
     alert(
       "Đăng nhập bằng Facebook chưa được tích hợp."
     );
+  };
+  //=============================================
+  // XỬ LÝ ĐĂNG NHẬP QUẢN TRỊ VIÊN
+  // ==============================
+  const handleAdminLogin = () => {
+    navigate("/admin/login");
   };
 
   // ==============================
@@ -247,9 +254,13 @@ function LoginForm() {
 
       </div>
 
-      <div className="switch">
-        <p><span onClick={() => navigate("/admin/login")} style={{ cursor: "pointer", color: "#667085", textDecoration: "underline" }}>Đăng nhập quản trị viên</span></p>
-      </div>
+      <button
+        type="button"
+        className="admin-login-button"
+        onClick={handleAdminLogin}
+      >
+        Đăng nhập quản trị viên
+      </button>
 
     </div>
   );

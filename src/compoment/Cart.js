@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import './Cart.css'; // Đảm bảo bạn có tệp CSS hoặc đổi đường dẫn phù hợp
 import { Modal, Button, Form } from 'react-bootstrap'; // Import các component cần thiết từ react-bootstrap
 import { addCartItem, createOrder, getCart, getUser, saveCart } from '../lib/store';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Toast from './Toast';
 
 const Cart = () => {
+  const navigate = useNavigate();
   const [cartItems, setCartItems] = useState(getCart);
   const [totalQuantity, setTotalQuantity] = useState(0);
   const [totalPrice, setTotalPrice] = useState(0);
@@ -89,6 +90,10 @@ const Cart = () => {
       setToast({ message: 'Hãy chọn ít nhất một sản phẩm để mua', type: 'error' });
       return;
     }
+    if (!getUser()) {
+      navigate('/login', { state: { from: '/cart' } });
+      return;
+    }
     setShowModal(true);
   };
 
@@ -97,6 +102,11 @@ const Cart = () => {
   };
 
   const handleModalSave = () => {
+    if (!getUser()) {
+      setShowModal(false);
+      navigate('/login', { state: { from: '/cart' } });
+      return;
+    }
     if (!customerInfo.name.trim() || !customerInfo.address.trim() || !/^0\d{9,10}$/.test(customerInfo.phone)) {
       setToast({ message: 'Vui lòng nhập họ tên, địa chỉ và số điện thoại hợp lệ', type: 'error' });
       return;
