@@ -1,0 +1,205 @@
+.auth-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 32px 16px;
+  background: linear-gradient(135deg, #e0f2fe 0%, #eef2ff 35%, #fdf2f8 100%);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.auth-form {
+  width: 100%;
+  max-width: 440px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 28px;
+  padding: 32px 28px 24px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(10px);
+}
+
+.auth-form h2 {
+  margin: 0 0 20px;
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.auth-form form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-form p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+.input-group,
+.password-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+}
+
+.input-group input,
+.password-group input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.55);
+  border-radius: 14px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 0.97rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.input-group input:focus,
+.password-group input:focus {
+  border-color: #3b82f6;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+}
+
+.password-toggle,
+.show-password-btn,
+.back-btn {
+  border: none;
+  background: #eef2ff;
+  color: #4338ca;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.password-toggle:hover,
+.show-password-btn:hover,
+.back-btn:hover {
+  background: #e0e7ff;
+}
+
+.submit-btn,
+.google-btn,
+.facebook-btn {
+  width: 100%;
+  padding: 14px 18px;
+  border: none;
+  border-radius: 14px;
+  font-size: 0.98rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.submit-btn {
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: #fff;
+  box-shadow: 0 14px 26px rgba(79, 70, 229, 0.22);
+}
+
+.submit-btn:hover,
+.google-btn:hover,
+.facebook-btn:hover {
+  transform: translateY(-1px);
+}
+
+.social-login {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.google-btn {
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: #fff;
+}
+
+.facebook-btn {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+}
+
+.error {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.resend-btn {
+  background: transparent;
+  border: none;
+  color: #2563eb;
+  font-weight: 700;
+  padding: 2px 0;
+  cursor: pointer;
+}
+
+.resend-btn:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.resend-info,
+.step-description {
+  color: #475569;
+  font-size: 0.86rem;
+}
+
+.password-rules {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.password-rules p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #475569;
+}
+
+.login-link {
+  text-align: center;
+  margin-top: 18px;
+  font-size: 0.95rem;
+}
+
+.login-link span {
+  color: #2563eb;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.login-link span:hover {
+  text-decoration: underline;
+}
+
+.back-btn {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+@media (max-width: 480px) {
+  .auth-form {
+    padding: 24px 18px 18px;
+    border-radius: 20px;
+  }
+
+  .auth-form h2 {
+    font-size: 1.7rem;
+  }
+}

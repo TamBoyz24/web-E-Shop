@@ -1,0 +1,248 @@
+/* styles.css */
+body {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  background-color: #f0f0f0;
+}
+
+.App {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 20px;
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+.boxtong{
+  display: flex;
+}
+
+
+.product-card img {
+  max-width: 100%;
+  margin-bottom: 10px ;
+  top: 20px;
+}
+
+.product-card h2 {
+  font-size: 1.2em;
+  margin: 10px 0;
+}
+
+.product-card p {
+  margin: 5px 0;
+}
+
+.product-list {
+  max-width: 1000px;
+  /* display: flex; */
+  left: 50%;
+  right: 50%;
+}
+
+button {
+  background-color: #ddd;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+button:hover {
+  background-color: #ddd;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+}
+
+li {
+  margin: 10px 0;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+li button {
+  background-color: rgb(182, 239, 10);
+  color: #fff;
+  border: none;
+  padding: 5px 10px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+li button:hover {
+  background-color: #d00;
+}
+
+/* Trang chính - ProductList.css */
+.product-list {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.product-card {
+  border: 1px solid #ddd;
+  padding: 10px;
+  margin: 10px;
+  width: 200px;
+  text-align: center;
+}
+
+.product-card img {
+  max-width: 100%;
+}
+
+.selected-product {
+  background-color: #1C1920;
+  border: 1px solid #ddd;
+  padding: 10px;
+  margin: 20px;
+  max-height: 500px;
+  overflow-y: auto;
+  text-align: center;
+}
+
+.selected-product-card {
+  border: 1px solid #ddd;
+  padding: 10px;
+  margin: 10px;
+  width: 200px;
+  text-align: center;
+}
+
+.selected-product-card img {
+  max-width: 100%;
+}
+
+.a {
+  background-color: #d00;
+}
+
+.b {
+  background-color: black;
+}
+
+.c {
+  background-color: fuchsia;
+  width: 150px;
+}
+
+.tt {
+  display: flex;
+}
+
+.giohang {
+  background-color: rgb(168, 164, 164);
+
+}
+
+.Email {
+  display: flex;
+  box-sizing: border-box;
+  padding-left: 15px;
+}
+
+h2 {
+  text-align: center;
+}
+
+/* CSS cho số trên biểu tượng giỏ hàng */
+.cart-count {
+  top: 10px;
+  /* Điều chỉnh vị trí số trên biểu tượng giỏ hàng */
+  right: 10px;
+  /* Điều chỉnh vị trí số trên biểu tượng giỏ hàng */
+  background-color: rgb(12, 195, 85);
+  /* Màu nền của số */
+  color: red;
+  /* Màu văn bản của số */
+  border-radius: 50%;
+  /* Để tạo hình tròn cho số */
+  width: 20px;
+  /* Điều chỉnh kích thước số */
+  height: 20px;
+  /* Điều chỉnh kích thước số */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  /* Điều chỉnh kích thước văn bản của số */
+}
+
+
+
+/* CSS */
+/* Định dạng kích thước của hình ảnh trong carousel */
+.carousel-inner {
+  padding-left: 60px;
+  height: 800px;
+  width: 1665px;
+  margin-bottom: auto;
+
+}
+
+
+
+
+
+
+/* Thêm hiệu ứng trong suốt khi di chuột vào hình ảnh */
+.my-slide .carousel-inner .carousel-item img:hover {
+  opacity: 0.8;
+  /* Độ trong suốt của hình ảnh khi di chuột vào */
+  transition: opacity 0.3s ease;
+  /* Hiệu ứng chuyển động 0.3 giây khi thay đổi trong suốt */
+}
+/* Navbar*/
+.navbar-nav a {
+  font-size: 18px;
+
+}
+
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

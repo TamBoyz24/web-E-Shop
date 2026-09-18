@@ -1,0 +1,36 @@
+/* Search Bar styles */
+.form-control {
+    width: 300px;
+    padding: 0.75rem 1rem;
+    border-radius: 20px;
+    border: 1px solid #ccc;
+    transition: border-color 0.3s ease;
+  }
+  
+  .form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(38, 143, 255, 0.25);
+  }
+  
+  .btn-outline-success {
+    border: 1px solid #28a745;
+    color: #28a745;
+    border-radius: 20px;
+    padding: 0.75rem 1rem;
+    margin-left: 10px;
+  }
+  
+  .btn-outline-success:hover {
+    background-color: #28a745;
+    color: white;
+    border-color: #28a745;
+  }
+  
+  .d-flex {
+    display: flex;
+  }
+  
+  .ms-auto {
+    margin-left: auto;
+  }
+  

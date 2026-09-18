@@ -1,0 +1,106 @@
+.auth-panel {
+  position: fixed;
+  top: 50%;
+  right: 32px;
+  transform: translateY(-50%);
+  width: min(360px, calc(100vw - 32px));
+  padding: 28px 22px 20px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 24px 60px rgba(22, 33, 74, 0.18);
+  z-index: 1100;
+  backdrop-filter: blur(12px);
+}
+
+.auth-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(110, 168, 255, 0.06));
+  pointer-events: none;
+}
+
+.form-container {
+  position: relative;
+  z-index: 1;
+}
+
+.form-container h2 {
+  text-align: center;
+  font-size: 2rem;
+  margin: 0 0 22px;
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.form-container form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.form-container form input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  font-size: 0.96rem;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #0f172a;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.form-container form input:focus {
+  border-color: #3b82f6;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+}
+
+.form-container form button {
+  padding: 14px 18px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  box-shadow: 0 12px 24px rgba(79, 70, 229, 0.22);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-container form button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 28px rgba(79, 70, 229, 0.26);
+}
+
+.form-container p {
+  text-align: center;
+  margin-top: 18px;
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+.toggle-link {
+  color: #2563eb;
+  cursor: pointer;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.toggle-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .auth-panel {
+    position: static;
+    transform: none;
+    width: min(92vw, 420px);
+    margin: 32px auto;
+  }
+}

@@ -1,0 +1,42 @@
+body {
+  margin: 0;
+  font-family: "DM Sans", "Segoe UI", sans-serif;
+  color: #172033;
+  background: #f4f7fb;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root {
+  --ink: #172033;
+  --muted: #667085;
+  --line: #e4e9f1;
+  --surface: #ffffff;
+  --brand: #1264e8;
+  --brand-dark: #0b46ac;
+  --accent: #ffb23e;
+  --radius: 18px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.app-main {
+  min-height: calc(100vh - 92px);
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}

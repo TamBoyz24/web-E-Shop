@@ -1,0 +1,216 @@
+.site-header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: rgba(255, 255, 255, .92);
+    border-bottom: 1px solid rgba(228, 233, 241, .9);
+    backdrop-filter: blur(18px);
+}
+
+.nav-shell {
+    width: min(1240px, calc(100% - 40px));
+    min-height: 76px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 30px;
+}
+
+.brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--ink);
+    font-weight: 800;
+    letter-spacing: -.04em;
+    font-size: 19px;
+    white-space: nowrap;
+}
+
+.brand em {
+    color: var(--brand);
+    font-style: normal;
+}
+
+.brand-mark {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 11px;
+    color: #fff;
+    background: var(--brand);
+    box-shadow: 0 8px 18px rgba(18, 100, 232, .25);
+}
+
+.main-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+}
+
+.main-nav a {
+    color: var(--muted);
+    text-decoration: none;
+    padding: 10px 13px;
+    font-size: 14px;
+    font-weight: 700;
+    border-radius: 10px;
+    transition: .2s ease;
+}
+
+.main-nav a:hover,
+.main-nav a.active {
+    color: var(--brand);
+    background: #edf4ff;
+}
+
+.nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    white-space: nowrap;
+}
+
+.cart-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--ink);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.cart-icon {
+    font-size: 18px;
+}
+
+.cart-link b {
+    min-width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    border-radius: 99px;
+    color: #fff;
+    background: var(--accent);
+    font-size: 11px;
+}
+
+.login-button {
+    border: 0;
+    border-radius: 11px;
+    padding: 11px 17px;
+    color: #fff;
+    background: var(--brand);
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.login-button:hover {
+    background: var(--brand-dark);
+}
+
+.account-actions {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.account-name {
+    color: var(--ink);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.logout-link {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.menu-toggle {
+    display: none;
+    margin-left: auto;
+    border: 0;
+    background: transparent;
+    padding: 8px;
+    cursor: pointer;
+}
+
+.menu-toggle span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    margin: 4px;
+    background: var(--ink);
+}
+
+@media (max-width: 920px) {
+    .nav-shell {
+        gap: 14px;
+    }
+
+    .main-nav {
+        gap: 0;
+    }
+
+    .main-nav a {
+        padding: 9px 8px;
+    }
+
+    .cart-label,
+    .account-name {
+        display: none;
+    }
+}
+
+@media (max-width: 700px) {
+    .nav-shell {
+        width: min(100% - 28px, 560px);
+        min-height: 68px;
+        position: relative;
+    }
+
+    .menu-toggle {
+        display: block;
+    }
+
+    .main-nav {
+        display: none;
+        position: absolute;
+        top: 68px;
+        left: 0;
+        right: 0;
+        padding: 10px;
+        flex-direction: column;
+        align-items: stretch;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 0 0 16px 16px;
+        box-shadow: 0 15px 30px rgba(23, 32, 51, .1);
+    }
+
+    .main-nav.is-open {
+        display: flex;
+    }
+
+    .main-nav a {
+        padding: 12px;
+    }
+
+    .nav-actions {
+        margin-left: auto;
+        gap: 8px;
+    }
+
+    .login-button {
+        padding: 9px 11px;
+        font-size: 12px;
+    }
+}

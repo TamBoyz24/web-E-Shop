@@ -1,0 +1,171 @@
+/* Cart.css */
+
+/* General Styles */
+.container {
+  max-width: 900px;
+  padding: 20px;
+}
+
+.text-center {
+  text-align: center;
+  margin-top: 100px;
+}
+
+.text-end {
+  text-align: end;
+  margin-top: 20px;
+}
+
+.table {
+  width: 100%;
+  margin-top: 20px;
+  margin-bottom: 100px;
+}
+
+.table-bordered {
+  border: 1px solid #dee2e6;
+}
+
+.table th,
+.table td {
+  vertical-align: middle;
+}
+
+.btn {
+  cursor: pointer;
+}
+
+.btn-primary {
+  background-color: #007bff;
+  border-color: #007bff;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #0056b3;
+  border-color: #004085;
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  border-color: #dc3545;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
+
+.btn-warning {
+  background-color: #ffc107;
+  border-color: #ffc107;
+  color: white;
+}
+
+.btn-warning:hover {
+  background-color: #e0a800;
+  border-color: #d39e00;
+}
+
+.btn-success {
+  background-color: #28a745;
+  border-color: #28a745;
+  color: white;
+}
+
+.btn-success:hover {
+  background-color: #218838;
+  border-color: #1e7e34;
+}
+
+/* Quantity Controls */
+.quantity-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quantity-controls button {
+  width: 30px;
+  height: 30px;
+  line-height: 1;
+  font-size: 18px;
+}
+
+.quantity-controls span {
+  margin: 0 10px;
+  display: inline-block;
+  min-width: 30px;
+  text-align: center;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .table {
+    font-size: 14px;
+  }
+
+  .quantity-controls button {
+    width: 25px;
+    height: 25px;
+    font-size: 16px;
+  }
+
+  .quantity-controls span {
+    margin: 0 5px;
+  }
+}
+
+.text-white {
+  color: white;
+}
+
+.text-decoration-none {
+  text-decoration: none;
+}
+
+.cart-selection-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 13px 16px;
+  border: 1px solid #e4e9f1;
+  border-radius: 12px;
+  color: #667085;
+  background: #fff;
+  font-size: 13px;
+}
+
+.cart-selection-bar label {
+  color: #172033;
+  font-weight: 700;
+}
+
+.cart-selection-bar input,
+.table input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  accent-color: #1264e8;
+  vertical-align: middle;
+}
+
+.table {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+@media (max-width: 700px) {
+  .cart-selection-bar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}

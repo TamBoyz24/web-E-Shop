@@ -1,0 +1,241 @@
+.promotion-page {
+    width: min(1240px, calc(100% - 40px));
+    margin: 0 auto;
+    padding: 38px 0 80px;
+}
+
+.promotion-hero {
+    position: relative;
+    min-height: 300px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    border-radius: 22px;
+    background: #151f36;
+}
+
+.promotion-hero img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+
+    .promotion-heading {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        margin: 48px 0 22px;
+    }
+
+    opacity: .55;
+}
+
+.promotion-hero>div {
+    position: relative;
+    z-index: 1;
+    padding: 46px 55px;
+    color: #fff;
+}
+
+.promotion-hero span,
+.promotion-eyebrow {
+    color: #ffca70;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .16em;
+}
+
+.promotion-hero h1 {
+    margin: 12px 0;
+    font-size: clamp(39px, 6vw, 68px);
+    line-height: .93;
+    letter-spacing: -.065em;
+}
+
+.promotion-hero h1 strong {
+    color: #ffb23e;
+}
+
+.promotion-hero p {
+    margin: 0;
+    color: #d7e2f3;
+}
+
+.promotion-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin: 48px 0 22px;
+}
+
+.promotion-heading h2 {
+    margin: 8px 0 0;
+    color: #172033;
+    font-size: 32px;
+    letter-spacing: -.05em;
+}
+
+.sale-timer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sale-timer b {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 38px;
+    border-radius: 8px;
+    color: #fff;
+    background: #172033;
+    font-size: 16px;
+}
+
+.sale-timer i {
+    color: #172033;
+    font-style: normal;
+    font-weight: 800;
+}
+
+.sale-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 17px;
+}
+
+.sale-card {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #e4e9f1;
+    border-radius: 16px;
+    background: #fff;
+    transition: .25s ease;
+}
+
+.sale-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 18px 35px rgba(23, 32, 51, .1);
+}
+
+.sale-badge {
+    position: absolute;
+    z-index: 1;
+    top: 12px;
+    left: 12px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    color: #fff;
+    background: #e65d5d;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.sale-card>img {
+    width: 100%;
+    height: 190px;
+    object-fit: cover;
+    background: #f3f6fb;
+}
+
+.sale-card-body {
+    padding: 16px;
+}
+
+.sale-card h3 {
+    min-height: 40px;
+    margin: 0 0 10px;
+    color: #172033;
+    font-size: 15px;
+}
+
+.sale-card-body strong {
+    color: #e65d5d;
+    font-size: 20px;
+}
+
+.sale-card-body del {
+    margin-left: 8px;
+    color: #9aa5b5;
+    font-size: 11px;
+}
+
+.sale-stock {
+    margin: 10px 0;
+    color: #18885b;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.sale-stock.sold-out {
+    color: #9aa5b5;
+}
+
+.sale-actions {
+    display: flex;
+    gap: 7px;
+}
+
+.sale-actions button {
+    flex: 1;
+    padding: 9px 5px;
+    border: 1px solid #1264e8;
+    border-radius: 8px;
+    color: #1264e8;
+    background: #fff;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.sale-actions button:last-child {
+    color: #fff;
+    background: #1264e8;
+}
+
+.sale-actions button:disabled {
+    cursor: not-allowed;
+    opacity: .45;
+}
+
+@media (max-width: 900px) {
+    .sale-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 650px) {
+    .promotion-page {
+        width: min(100% - 28px, 560px);
+    }
+
+    .promotion-hero>div {
+        padding: 35px 25px;
+    }
+
+    .promotion-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .sale-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .sale-card>img {
+        height: 150px;
+    }
+
+    .sale-card-body {
+        padding: 12px;
+    }
+}
+
+@media (max-width: 400px) {
+    .sale-grid {
+        grid-template-columns: 1fr;
+    }
+}
