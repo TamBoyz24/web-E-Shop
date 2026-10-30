@@ -8,6 +8,6 @@ RUN dotnet publish -c Release -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
-COPY --from=build /app/publish ./
+COPY --from=builder /app/build /usr/share/nginx/html
 EXPOSE 5000
 ENTRYPOINT ["dotnet", "backend.dll"]
