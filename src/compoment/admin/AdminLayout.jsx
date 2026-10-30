@@ -14,6 +14,7 @@ const AdminLayout = ({ eyebrow, title, description, action, children, className 
 
     const logout = () => {
         localStorage.removeItem("adminSession");
+        localStorage.removeItem("adminToken");
         navigate("/admin/login");
     };
 

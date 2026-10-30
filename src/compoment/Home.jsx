@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiRequest } from "../lib/api";
 import { addCartItem, getCart } from "../lib/store";
 import Toast from "./Toast";
 import "./Home.css"; // Giả sử bạn đã có file CSS cho Home
@@ -89,7 +90,15 @@ const Home = () => {
   }, []);
 
   useEffect(() => {
-    const refreshProducts = () => setProducts(loadStoreProducts(samsungProducts));
+    const refreshProducts = async () => {
+      try {
+        const savedProducts = await apiRequest("/products");
+        setProducts(savedProducts.length ? savedProducts : loadStoreProducts(samsungProducts));
+      } catch (requestError) {
+        setToast({ message: requestError.message, type: "error" });
+      }
+    };
+    refreshProducts();
     window.addEventListener("products-updated", refreshProducts);
     window.addEventListener("storage", refreshProducts);
     return () => {

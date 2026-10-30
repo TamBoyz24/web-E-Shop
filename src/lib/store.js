@@ -1,6 +1,7 @@
+import { apiRequest } from "./api";
+
 export const STORAGE_KEYS = {
     cart: "cart",
-    orders: "orders",
     user: "user",
     currentUser: "currentUser",
     adminSession: "adminSession",
@@ -38,35 +39,30 @@ export function addCartItem(product, quantity = 1) {
     return updatedCart;
 }
 
-export function getOrders() {
-    return readStorage(STORAGE_KEYS.orders, []);
-}
-
-export function saveOrders(orders) {
-    writeStorage(STORAGE_KEYS.orders, orders);
-    window.dispatchEvent(new Event("orders-updated"));
-}
-
 export function getUser() {
     return readStorage(STORAGE_KEYS.user, readStorage(STORAGE_KEYS.currentUser, null));
 }
 
-export function createOrder(items, customerInfo, user) {
-    const order = {
-        id: `DH-${Date.now()}`,
-        customer: customerInfo.name,
-        phone: customerInfo.phone,
-        address: customerInfo.address,
-        userPhone: user?.phone || customerInfo.phone,
-        userId: user?.id || null,
-        items: items.map((item) => ({ ...item })),
-        totalQuantity: items.reduce((sum, item) => sum + (item.quantity || 1), 0),
-        total: items.reduce((sum, item) => sum + Number(item.price || 0) * (item.quantity || 1), 0),
-        status: "pending",
-        createdAt: new Date().toISOString(),
-    };
-    saveOrders([order, ...getOrders()]);
-    return order;
+export async function createOrder(items, customerInfo, user) {
+    const order = await apiRequest("/orders", {
+        method: "POST",
+        body: {
+            customer: customerInfo.name,
+            phone: customerInfo.phone,
+            address: customerInfo.address,
+            userId: user?.id || null,
+            items: items.map((item) => ({
+                id: String(item.id),
+                name: item.name,
+                price: Number(item.price || 0),
+                quantity: item.quantity || 1,
+                images: item.images || "",
+                image: item.image || null,
+                color: item.color || null,
+            })),
+        },
+    });
+    return { ...order, databaseId: order.id, id: order.orderNumber };
 }
 
 export function removeCartItemsForOrder(order) {

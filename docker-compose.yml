@@ -1,0 +1,38 @@
+name: duannhom9
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27018:27017"
+    volumes:
+      - aiphone-mongodb-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:5000
+      MongoDB__ConnectionString: mongodb://mongo:27017
+      MongoDB__DatabaseName: AiPhoneStore
+      Jwt__Key: local-compose-key-change-before-deploy-32-bytes-minimum
+      Admin__Username: admin
+      Admin__Password: admin123
+      Cors__AllowedOrigins__0: http://localhost:3000
+    ports:
+      - "127.0.0.1:5000:5000"
+
+volumes:
+  aiphone-mongodb-data:
+    name: duannhom9_aiphone-mongodb-data

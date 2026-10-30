@@ -1,5 +1,19 @@
 # Getting Started with Create React App
 
+## Database and API
+
+The application uses a .NET 10 API and MongoDB. From the project root, start both services with:
+
+```powershell
+docker compose up -d --build
+```
+
+MongoDB listens on `localhost:27018` (container port `27017`); the API listens on `http://localhost:5000`. Then start the React app from `web-do-an` with `npm start` (default: `http://localhost:3000`). The React API URL can be changed with `REACT_APP_API_URL`.
+
+The MongoDB database is named `AiPhoneStore`, with `products`, `users`, and `orders` collections. Docker stores the database files in the `aiphone-mongodb-data` volume. Inspect them with `docker compose exec mongo mongosh AiPhoneStore`, then run `show collections`.
+
+The first visit to the admin product page seeds an empty database from the browser's saved catalog, or from the built-in catalog if none is saved. Existing browser-stored orders are imported when the database has no orders; an existing customer account is migrated and its local password copy removed after that customer signs in successfully. Local development admin credentials are `admin` / `admin123`; change these and the JWT signing key before deployment. The cart remains in browser storage.
+
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts

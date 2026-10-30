@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { apiRequest } from "../lib/api";
+import { readStorage } from "../lib/store";
 import "./LoginForm.css";
 
 function LoginForm() {
@@ -16,7 +18,7 @@ function LoginForm() {
   // ==============================
   // XỬ LÝ ĐĂNG NHẬP
   // ==============================
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     setError("");
@@ -37,26 +39,43 @@ function LoginForm() {
 
     setLoading(true);
 
-    // Lấy danh sách tài khoản đã đăng ký
-    const users =
-      JSON.parse(localStorage.getItem("users")) || [];
+    try {
+      let user;
+      try {
+        user = await apiRequest("/auth/login", {
+          method: "POST",
+          body: { phone: phoneNumber, password },
+        });
+      } catch (loginError) {
+        if (loginError.status !== 401) throw loginError;
+        const legacyUsers = readStorage("users", []);
+        const legacyUser = Array.isArray(legacyUsers)
+          ? legacyUsers.find((item) => item.phone === phoneNumber && item.password === password)
+          : null;
+        if (!legacyUser) throw loginError;
 
-    // Tìm tài khoản
-    const user = users.find(
-      (item) =>
-        item.phone === phoneNumber &&
-        item.password === password
-    );
+        try {
+          await apiRequest("/auth/register", {
+            method: "POST",
+            body: {
+              username: legacyUser.username || legacyUser.name || "Người dùng",
+              phone: legacyUser.phone,
+              password: legacyUser.password,
+            },
+          });
+        } catch (registrationError) {
+          if (registrationError.status !== 409) throw registrationError;
+        }
 
-    // Giả lập thời gian đăng nhập
-    setTimeout(() => {
-      setLoading(false);
+        user = await apiRequest("/auth/login", {
+          method: "POST",
+          body: { phone: phoneNumber, password },
+        });
+      }
 
-      if (!user) {
-        setError(
-          "Số điện thoại hoặc mật khẩu không chính xác!"
-        );
-        return;
+      const legacyUsers = readStorage("users", []);
+      if (Array.isArray(legacyUsers) && legacyUsers.some((item) => item.phone === phoneNumber)) {
+        localStorage.setItem("users", JSON.stringify(legacyUsers.filter((item) => item.phone !== phoneNumber)));
       }
 
       // Lưu người dùng đang đăng nhập
@@ -76,7 +95,11 @@ function LoginForm() {
 
       const destination = location.state?.from || "/home";
       navigate(destination, { replace: true });
-    }, 700);
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ==============================

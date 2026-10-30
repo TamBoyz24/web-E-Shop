@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { apiRequest } from "../lib/api";
 import { addCartItem, getCart, getUser } from "../lib/store";
 import Toast from "./Toast";
 import './ProductDetail.css'; // Import file CSS
@@ -15,6 +16,7 @@ const ProductDetail = () => {
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
+    let isMounted = true;
     // Mảng sản phẩm mẫu
     const products = [
       { id: 1, name: 'iPhone 11 64GB', price: 599, images: 'iPhone 11 64GB.webp', description: 'Mô tả chi tiết của iPhone 11 64GB', colors: ["Black", "White", "Blue"] },
@@ -79,17 +81,31 @@ const ProductDetail = () => {
       { id: 60, name: 'Samsung-galaxy-a25-xanh-vang', price: 2999, images: 'galaxy-a25-xanh-vang.webp', description: 'Mô tả chi tiết của Samsung-galaxy-a25-xanh-vang', colors: ["Black", "White", "Blue"] },
     ];
 
-    let catalog = products;
-    try {
-      const savedProducts = JSON.parse(localStorage.getItem("storeProducts"));
-      if (Array.isArray(savedProducts)) {
-        catalog = savedProducts;
+    const showProduct = (selectedProduct) => {
+      if (isMounted) {
+        setProduct(selectedProduct ? { ...selectedProduct, colors: selectedProduct.colors || ["Đen", "Trắng", "Xanh"] } : null);
       }
-    } catch {
-      catalog = products;
+    };
+    if (/^[a-f\d]{24}$/i.test(id)) {
+      apiRequest(`/products/${id}`)
+        .then(showProduct)
+        .catch((requestError) => {
+          if (isMounted) {
+            setProduct(null);
+            setToast({ message: requestError.message, type: "error" });
+          }
+        });
+    } else {
+      let catalog = products;
+      try {
+        const savedProducts = JSON.parse(localStorage.getItem("storeProducts"));
+        if (Array.isArray(savedProducts)) catalog = savedProducts;
+      } catch {
+        catalog = products;
+      }
+      showProduct(catalog.find((product) => String(product.id) === id));
     }
-    const selectedProduct = catalog.find((product) => product.id === parseInt(id));
-    setProduct(selectedProduct ? { ...selectedProduct, colors: selectedProduct.colors || ["Đen", "Trắng", "Xanh"] } : null);
+    return () => { isMounted = false; };
   }, [id]);
   useEffect(() => {
     const savedUser = JSON.parse(localStorage.getItem("user"));

@@ -101,7 +101,7 @@ const Cart = () => {
     setShowModal(false);
   };
 
-  const handleModalSave = () => {
+  const handleModalSave = async () => {
     if (!getUser()) {
       setShowModal(false);
       navigate('/login', { state: { from: '/cart' } });
@@ -111,15 +111,19 @@ const Cart = () => {
       setToast({ message: 'Vui lòng nhập họ tên, địa chỉ và số điện thoại hợp lệ', type: 'error' });
       return;
     }
-    const order = createOrder(selectedItems, customerInfo, getUser());
-    const remainingItems = cartItems.filter((item) => !selectedKeys.includes(getItemKey(item)));
-    saveCart(remainingItems);
-    setCartItems(remainingItems);
-    setOrderCreated(order);
-    setToast({ message: `Đã tiếp nhận đơn ${order.id}`, type: 'success' });
-    setShowModal(false);
-    setSelectedKeys([]);
-    setCustomerInfo({ name: '', address: '', phone: '' });
+    try {
+      const order = await createOrder(selectedItems, customerInfo, getUser());
+      const remainingItems = cartItems.filter((item) => !selectedKeys.includes(getItemKey(item)));
+      saveCart(remainingItems);
+      setCartItems(remainingItems);
+      setOrderCreated(order);
+      setToast({ message: `Đã tiếp nhận đơn ${order.id}`, type: 'success' });
+      setShowModal(false);
+      setSelectedKeys([]);
+      setCustomerInfo({ name: '', address: '', phone: '' });
+    } catch (requestError) {
+      setToast({ message: requestError.message, type: 'error' });
+    }
   };
 
   const handleInputChange = (e) => {
