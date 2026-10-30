@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiRequest } from "../lib/api";
 import "./AuthForm.css";
 
 const AuthForm = () => {
@@ -96,25 +97,6 @@ const AuthForm = () => {
       return;
     }
 
-    // Lấy danh sách tài khoản
-    const users =
-      JSON.parse(
-        localStorage.getItem("users")
-      ) || [];
-
-    // Kiểm tra số điện thoại đã tồn tại
-    const existingUser = users.find(
-      (user) =>
-        user.phone === phone
-    );
-
-    if (existingUser) {
-      setError(
-        "Số điện thoại này đã được đăng ký!"
-      );
-      return;
-    }
-
     // Tạo OTP
     generateOtp();
 
@@ -204,7 +186,7 @@ const AuthForm = () => {
   // BƯỚC 3
   // TẠO TÀI KHOẢN
   // =====================================================
-  const handleCreateAccount = (e) => {
+  const handleCreateAccount = async (e) => {
     e.preventDefault();
 
     setError("");
@@ -218,51 +200,16 @@ const AuthForm = () => {
       return;
     }
 
-    // Lấy danh sách tài khoản
-    const users =
-      JSON.parse(
-        localStorage.getItem("users")
-      ) || [];
-
-    // Kiểm tra lại số điện thoại
-    const existingUser = users.find(
-      (user) =>
-        user.phone === phone
-    );
-
-    if (existingUser) {
-      setError(
-        "Số điện thoại này đã được đăng ký!"
-      );
-      return;
+    try {
+      await apiRequest("/auth/register", {
+        method: "POST",
+        body: { username: username.trim(), phone, password },
+      });
+      alert("Đăng ký thành công! Vui lòng đăng nhập.");
+      navigate("/login");
+    } catch (requestError) {
+      setError(requestError.message);
     }
-
-    // Tạo tài khoản mới
-    const newUser = {
-      id: Date.now(),
-      username: username.trim(),
-      phone: phone,
-      password: password,
-      createdAt:
-        new Date().toISOString()
-    };
-
-    // Thêm tài khoản
-    users.push(newUser);
-
-    // Lưu vào localStorage
-    localStorage.setItem(
-      "users",
-      JSON.stringify(users)
-    );
-
-    // Thông báo
-    alert(
-      "Đăng ký thành công! Vui lòng đăng nhập."
-    );
-
-    // Chuyển đến Login
-    navigate("/login");
   };
 
   // =====================================================

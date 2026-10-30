@@ -1,16 +1,48 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { getOrders, removeCartItemsForOrder, saveOrders } from "../../lib/store";
+import { readStorage, removeCartItemsForOrder } from "../../lib/store";
+import { apiRequest } from "../../lib/api";
 import "./admin-common.css";
 import "./OrderManagement.css";
 
 const statusLabels = { pending: "Chờ xử lý", confirmed: "Đã xác nhận", shipping: "Đang giao", completed: "Hoàn tất", cancelled: "Đã hủy" };
 
 const OrderManagement = () => {
-    const [orders, setOrders] = useState(() => getOrders());
+    const [orders, setOrders] = useState([]);
+    const [error, setError] = useState("");
     const [query, setQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [selectedOrder, setSelectedOrder] = useState(null);
+
+    useEffect(() => {
+        let isMounted = true;
+        const loadOrders = async () => {
+            try {
+                let savedOrders = await apiRequest("/admin/orders", { admin: true });
+                if (savedOrders.length === 0) {
+                    const legacyOrders = readStorage("orders", []);
+                    if (Array.isArray(legacyOrders) && legacyOrders.length) {
+                        try {
+                            savedOrders = await apiRequest("/admin/orders/import", {
+                                method: "POST",
+                                body: legacyOrders,
+                                admin: true,
+                            });
+                            localStorage.removeItem("orders");
+                        } catch (importError) {
+                            savedOrders = await apiRequest("/admin/orders", { admin: true });
+                            if (savedOrders.length === 0) throw importError;
+                        }
+                    }
+                }
+                if (isMounted) setOrders(savedOrders.map(normalizeOrder));
+            } catch (requestError) {
+                if (isMounted) setError(requestError.message);
+            }
+        };
+        loadOrders();
+        return () => { isMounted = false; };
+    }, []);
 
     const filteredOrders = useMemo(() => orders.filter((order) => {
         const searchable = `${order.id} ${order.customer} ${order.phone}`.toLowerCase();
@@ -24,22 +56,33 @@ const OrderManagement = () => {
         revenue: orders.filter((order) => order.status === "completed").reduce((sum, order) => sum + order.total, 0),
     };
 
-    const updateStatus = (order, status) => {
-        const updatedOrders = orders.map((item) => item.id === order.id ? { ...item, status, updatedAt: new Date().toISOString() } : item);
-        saveOrders(updatedOrders);
-        setOrders(updatedOrders);
-        if (status === "completed") {
-            removeCartItemsForOrder(order);
+    const updateStatus = async (order, status) => {
+        try {
+            await apiRequest(`/admin/orders/${order.databaseId}/status`, {
+                method: "PATCH",
+                body: { status },
+                admin: true,
+            });
+            const updatedOrder = { ...order, status, updatedAt: new Date().toISOString() };
+            setOrders((current) => current.map((item) => item.id === order.id ? updatedOrder : item));
+            if (status === "completed") removeCartItemsForOrder(order);
+            if (selectedOrder?.id === order.id) setSelectedOrder(updatedOrder);
+            setError("");
+        } catch (requestError) {
+            setError(requestError.message);
         }
-        if (selectedOrder?.id === order.id) setSelectedOrder({ ...order, status });
     };
 
-    const deleteOrder = (order) => {
+    const deleteOrder = async (order) => {
         if (!window.confirm(`Xóa lịch sử đơn ${order.id}?`)) return;
-        const updatedOrders = orders.filter((item) => item.id !== order.id);
-        saveOrders(updatedOrders);
-        setOrders(updatedOrders);
-        setSelectedOrder(null);
+        try {
+            await apiRequest(`/admin/orders/${order.databaseId}`, { method: "DELETE", admin: true });
+            setOrders((current) => current.filter((item) => item.id !== order.id));
+            setSelectedOrder(null);
+            setError("");
+        } catch (requestError) {
+            setError(requestError.message);
+        }
     };
 
     return (
@@ -52,6 +95,7 @@ const OrderManagement = () => {
             </aside>
             <section className="admin-workspace orders-content">
                 <header className="orders-header"><div><span className="admin-eyebrow">OPERATIONS / ORDERS</span><h1>Quản lý đơn hàng</h1><p>Theo dõi, xác nhận và cập nhật tiến trình giao hàng.</p></div></header>
+                {error && <p className="form-error" role="alert">{error}</p>}
                 <div className="orders-stats"><div><small>Tổng đơn</small><strong>{stats.total}</strong></div><div><small>Chờ xử lý</small><strong>{stats.pending}</strong></div><div><small>Đang giao</small><strong>{stats.shipping}</strong></div><div><small>Doanh thu hoàn tất</small><strong>{stats.revenue.toLocaleString("vi-VN")}đ</strong></div></div>
                 <section className="orders-panel">
                     <div className="orders-toolbar"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm mã đơn, tên khách hoặc số điện thoại..." /><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">Tất cả trạng thái</option>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
@@ -62,5 +106,9 @@ const OrderManagement = () => {
         </main>
     );
 };
+
+function normalizeOrder(order) {
+    return { ...order, databaseId: order.id, id: order.orderNumber };
+}
 
 export default OrderManagement;

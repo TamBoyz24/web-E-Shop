@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './RedmiPage.css';
 import { useNavigate } from "react-router-dom";
+import { apiRequest } from "../lib/api";
 import { getCart, saveCart } from "../lib/store";
 import Toast from "../compoment/Toast";
 
@@ -28,17 +29,38 @@ const redmiProducts = [
 ];
 
 const RedmiPage = () => {
+  const [products, setProducts] = useState(redmiProducts);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('asc');
   const navigate = useNavigate();
   const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const refreshProducts = async () => {
+      try {
+        const savedProducts = await apiRequest("/products");
+        if (isMounted && savedProducts.length) {
+          setProducts(savedProducts.filter((product) => /xiaomi|redmi|poco/i.test(`${product.category} ${product.name}`)));
+        }
+      } catch (requestError) {
+        if (isMounted) setToast({ message: requestError.message, type: 'error' });
+      }
+    };
+    refreshProducts();
+    window.addEventListener("products-updated", refreshProducts);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("products-updated", refreshProducts);
+    };
+  }, []);
 
   const handleViewDetails = (product) => {
     navigate(`/product-detail/${product.id}`);
   };
 
   // Lọc và sắp xếp sản phẩm
-  const filteredProducts = redmiProducts
+  const filteredProducts = products
     .filter((product) =>
       product.name.toLowerCase().includes(searchTerm.toLowerCase())
     )

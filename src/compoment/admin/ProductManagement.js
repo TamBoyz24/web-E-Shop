@@ -1,14 +1,17 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { apiRequest } from "../../lib/api";
+import { readStorage } from "../../lib/store";
 import productsData from "./ProductAdmin";
 import "./admin-common.css";
 import "./ProductManagement.css";
 
-const STORAGE_KEY = "storeProducts";
 const initialProducts = productsData.map(normalizeProduct);
 
 function ProductManagement() {
-    const [products, setProducts] = useState(() => loadProducts());
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState("");
     const [query, setQuery] = useState("");
     const [category, setCategory] = useState("all");
     const [stockFilter, setStockFilter] = useState("all");
@@ -16,6 +19,41 @@ function ProductManagement() {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [formError, setFormError] = useState("");
     const [formData, setFormData] = useState(emptyProduct());
+
+    useEffect(() => {
+        let isMounted = true;
+        const loadProducts = async () => {
+            try {
+                let savedProducts = await apiRequest("/admin/products", { admin: true });
+                if (savedProducts.length === 0) {
+                    const hasLegacyCatalog = localStorage.getItem("storeProducts") !== null;
+                    const legacyProducts = readStorage("storeProducts", initialProducts);
+                    const productsToSeed = hasLegacyCatalog && Array.isArray(legacyProducts)
+                        ? legacyProducts.map(normalizeProduct)
+                        : initialProducts;
+                    if (productsToSeed.length) {
+                        try {
+                            savedProducts = await apiRequest("/admin/products/seed", {
+                                method: "POST",
+                                body: productsToSeed,
+                                admin: true,
+                            });
+                        } catch (seedError) {
+                            savedProducts = await apiRequest("/admin/products", { admin: true });
+                            if (savedProducts.length === 0) throw seedError;
+                        }
+                    }
+                }
+                if (isMounted) setProducts(savedProducts.map(normalizeProduct));
+            } catch (requestError) {
+                if (isMounted) setLoadError(requestError.message);
+            } finally {
+                if (isMounted) setLoading(false);
+            }
+        };
+        loadProducts();
+        return () => { isMounted = false; };
+    }, []);
 
     const categories = useMemo(() => [...new Set(products.map((product) => product.category).filter(Boolean))], [products]);
     const filteredProducts = useMemo(() => products.filter((product) => {
@@ -58,34 +96,54 @@ function ProductManagement() {
         setFormData((current) => ({ ...current, [name]: value }));
     };
 
-    const handleSave = (event) => {
+    const handleSave = async (event) => {
         event.preventDefault();
         const product = normalizeProduct({ ...formData, id: editingProduct?.id || Date.now() });
         if (!product.name || !product.category || !product.price || !product.images) {
             setFormError("Vui lòng nhập đủ tên, danh mục, giá và tên hình ảnh.");
             return;
         }
-        const updatedProducts = editingProduct
-            ? products.map((item) => item.id === editingProduct.id ? product : item)
-            : [product, ...products];
-        saveProducts(updatedProducts);
-        setProducts(updatedProducts);
-        closeForm();
+        try {
+            const savedProduct = await apiRequest(
+                editingProduct ? `/admin/products/${editingProduct.id}` : "/admin/products",
+                { method: editingProduct ? "PUT" : "POST", body: product, admin: true }
+            );
+            const updatedProducts = editingProduct
+                ? products.map((item) => item.id === editingProduct.id ? normalizeProduct(savedProduct) : item)
+                : [normalizeProduct(savedProduct), ...products];
+            setProducts(updatedProducts);
+            setLoadError("");
+            window.dispatchEvent(new Event("products-updated"));
+            closeForm();
+        } catch (requestError) {
+            setFormError(requestError.message);
+        }
     };
 
-    const handleDelete = (product) => {
+    const handleDelete = async (product) => {
         if (!window.confirm(`Xóa sản phẩm "${product.name}" khỏi kho?`)) return;
-        const updatedProducts = products.filter((item) => item.id !== product.id);
-        saveProducts(updatedProducts);
-        setProducts(updatedProducts);
+        try {
+            await apiRequest(`/admin/products/${product.id}`, { method: "DELETE", admin: true });
+            setProducts((current) => current.filter((item) => item.id !== product.id));
+            window.dispatchEvent(new Event("products-updated"));
+        } catch (requestError) {
+            setLoadError(requestError.message);
+        }
     };
 
-    const toggleStatus = (product) => {
-        const updatedProducts = products.map((item) => item.id === product.id
-            ? { ...item, status: item.status === "active" ? "hidden" : "active" }
-            : item);
-        saveProducts(updatedProducts);
-        setProducts(updatedProducts);
+    const toggleStatus = async (product) => {
+        const updatedProduct = { ...product, status: product.status === "active" ? "hidden" : "active" };
+        try {
+            const savedProduct = await apiRequest(`/admin/products/${product.id}`, {
+                method: "PUT",
+                body: updatedProduct,
+                admin: true,
+            });
+            setProducts((current) => current.map((item) => item.id === product.id ? normalizeProduct(savedProduct) : item));
+            window.dispatchEvent(new Event("products-updated"));
+        } catch (requestError) {
+            setLoadError(requestError.message);
+        }
     };
 
     return (
@@ -107,6 +165,7 @@ function ProductManagement() {
                     <div><span className="admin-eyebrow">INVENTORY / PRODUCTS</span><h1>Kho sản phẩm</h1><p>Quản lý danh mục, giá bán và số lượng tồn kho.</p></div>
                     <button className="inventory-primary" type="button" onClick={openCreateForm}>+ Đăng sản phẩm</button>
                 </header>
+                {loadError && <p className="form-error" role="alert">{loadError}</p>}
 
                 <div className="inventory-stats">
                     <Stat label="Tổng sản phẩm" value={stats.total} detail="Mặt hàng trong kho" />
@@ -132,7 +191,8 @@ function ProductManagement() {
                                 <td><button className={`status-pill ${product.status}`} type="button" onClick={() => toggleStatus(product)}>{product.status === "active" ? "Đang bán" : "Đang ẩn"}</button></td>
                                 <td><div className="row-actions"><button type="button" onClick={() => openEditForm(product)} aria-label={`Sửa ${product.name}`}>Sửa</button><button className="danger" type="button" onClick={() => handleDelete(product)} aria-label={`Xóa ${product.name}`}>Xóa</button></div></td>
                             </tr>)}</tbody></table>
-                        {filteredProducts.length === 0 && <div className="empty-inventory">Không tìm thấy sản phẩm phù hợp.</div>}
+                        {loading && <div className="empty-inventory">Đang tải sản phẩm...</div>}
+                        {!loading && filteredProducts.length === 0 && <div className="empty-inventory">Không tìm thấy sản phẩm phù hợp.</div>}
                     </div>
                     <footer className="inventory-footer">Đang hiển thị <strong>{filteredProducts.length}</strong> trên {products.length} sản phẩm</footer>
                 </section>
@@ -154,7 +214,4 @@ function Stat({ label, value, detail, warning }) { return <div className="invent
 function emptyProduct() { return { name: "", sku: "", brand: "", category: "", price: "", stock: 0, images: "", description: "", status: "active" }; }
 function normalizeProduct(product) { return { ...product, price: Number(product.price) || 0, stock: Number.isFinite(Number(product.stock)) ? Number(product.stock) : 20, sku: product.sku || `SP-${product.id}`, brand: product.brand || product.category || "Điện thoại", category: product.category || guessCategory(product.name), images: product.images || product.image || "", description: product.description || "Sản phẩm chính hãng tại AiPhone Store", status: product.status || "active" }; }
 function guessCategory(name = "") { const value = name.toLowerCase(); if (value.includes("iphone")) return "iPhone"; if (value.includes("samsung")) return "Samsung"; return "Xiaomi"; }
-function loadProducts() { try { const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)); if (Array.isArray(saved)) return saved.map(normalizeProduct); } catch { /* Use the built-in catalog when storage is invalid. */ } return initialProducts; }
-function saveProducts(products) { localStorage.setItem(STORAGE_KEY, JSON.stringify(products)); window.dispatchEvent(new Event("products-updated")); }
-
 export default ProductManagement;

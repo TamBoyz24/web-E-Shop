@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './IphonePage.css';
 import { useNavigate } from "react-router-dom";
+import { apiRequest } from "../lib/api";
 import { getCart, saveCart } from "../lib/store";
 import Toast from "../compoment/Toast";
 
@@ -28,17 +29,38 @@ const iphoneProducts = [
 ];
 
 const IphonePage = () => {
+  const [products, setProducts] = useState(iphoneProducts);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('asc');
   const navigate = useNavigate();
   const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const refreshProducts = async () => {
+      try {
+        const savedProducts = await apiRequest("/products");
+        if (isMounted && savedProducts.length) {
+          setProducts(savedProducts.filter((product) => product.category === "iPhone" || product.name.toLowerCase().includes("iphone")));
+        }
+      } catch (requestError) {
+        if (isMounted) setToast({ message: requestError.message, type: 'error' });
+      }
+    };
+    refreshProducts();
+    window.addEventListener("products-updated", refreshProducts);
+    return () => {
+      isMounted = false;
+      window.removeEventListener("products-updated", refreshProducts);
+    };
+  }, []);
 
   const handleViewDetails = (product) => {
     navigate(`/product-detail/${product.id}`);
   };
 
   // Lọc và sắp xếp sản phẩm
-  const filteredProducts = iphoneProducts
+  const filteredProducts = products
     .filter((product) =>
       product.name.toLowerCase().includes(searchTerm.toLowerCase())
     )
