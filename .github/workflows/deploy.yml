@@ -1,0 +1,81 @@
+name: Build and Deploy E-Shop
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/web-eshop:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/web-eshop:${{ github.sha }}
+
+  deploy:
+    name: Deploy to AWS EC2
+    needs: build-and-push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy application
+        uses: appleboy/ssh-action@v1.2.2
+        env:
+          IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/web-eshop:latest
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          envs: IMAGE
+          script: |
+            set -e
+
+            echo "Downloading new Docker image..."
+            docker pull "$IMAGE"
+
+            echo "Removing old container..."
+            docker rm -f web-eshop || true
+
+            echo "Starting new container..."
+            docker run -d \
+              --name web-eshop \
+              -p 80:80 \
+              --restart unless-stopped \
+              "$IMAGE"
+
+            echo "Cleaning unused Docker images..."
+            docker image prune -f
+
+            echo "Checking container..."
+            docker ps --filter name=web-eshop
+
+            echo "Checking website..."
+            curl -fsS http://localhost/ > /dev/null
+
+            echo "Deployment completed successfully!"
