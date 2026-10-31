@@ -8,8 +8,8 @@ WORKDIR /app
 # Copy package files trước để tận dụng Docker cache
 COPY package*.json ./
 
-# Cài dependencies
-RUN npm install
+# Cài dependencies đã khóa trong package-lock.json
+RUN npm ci
 
 # Copy toàn bộ source code
 COPY . .
@@ -30,7 +30,7 @@ RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy file build
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder /app/build /usr/share/nginx/html
 
 # Mở port 80
 EXPOSE 80

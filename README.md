@@ -10,9 +10,22 @@ docker compose up -d --build
 
 MongoDB listens on `localhost:27018` (container port `27017`); the API listens on `http://localhost:5000`. Then start the React app from `web-do-an` with `npm start` (default: `http://localhost:3000`). The React API URL can be changed with `REACT_APP_API_URL`.
 
+The browser calls the API through the same-origin `/api` path. The local React development server proxies that path to `localhost:5000`; the production Nginx container proxies it to the .NET API. Do not set `REACT_APP_API_URL` to `localhost` for a deployed site.
+
 The MongoDB database is named `AiPhoneStore`, with `products`, `users`, and `orders` collections. Docker stores the database files in the `aiphone-mongodb-data` volume. Inspect them with `docker compose exec mongo mongosh AiPhoneStore`, then run `show collections`.
 
 The first visit to the admin product page seeds an empty database from the browser's saved catalog, or from the built-in catalog if none is saved. Existing browser-stored orders are imported when the database has no orders; an existing customer account is migrated and its local password copy removed after that customer signs in successfully. Local development admin credentials are `admin` / `admin123`; change these and the JWT signing key before deployment. The cart remains in browser storage.
+
+## Production deployment
+
+The GitHub Actions workflow deploys the frontend, .NET API, and MongoDB together after changes are merged to `main`. Configure these GitHub Actions secrets in addition to the existing Docker Hub and EC2 secrets:
+
+- `MONGO_ROOT_USERNAME` and `MONGO_ROOT_PASSWORD`: MongoDB root credentials.
+- `MONGODB_URI`: API connection string in the form `mongodb://<url-encoded-user>:<url-encoded-password>@mongo:27017/?authSource=admin`.
+- `JWT_KEY`: a unique random signing key of at least 32 bytes.
+- `ADMIN_USERNAME` and `ADMIN_PASSWORD`: production administrator credentials.
+
+The EC2 instance must have Docker Compose installed and allow inbound HTTP on port 80. MongoDB is not exposed publicly; its data persists in the `web-eshop-mongodb-data` Docker volume across application deployments.
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
