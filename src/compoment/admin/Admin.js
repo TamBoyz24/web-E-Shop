@@ -3,14 +3,29 @@ import { Link } from "react-router-dom";
 import { apiRequest } from "../../lib/api";
 import AdminLayout from "./AdminLayout";
 
+const EMPTY_DASHBOARD = {
+    productCount: 0,
+    userCount: 0,
+    orders: [],
+    pendingOrderCount: 0,
+    completedRevenue: 0,
+};
+
 const Admin = () => {
-    const [dashboard, setDashboard] = useState({ productCount: 0, userCount: 0, orders: [], pendingOrderCount: 0, completedRevenue: 0 });
+    const [dashboard, setDashboard] = useState(EMPTY_DASHBOARD);
     const [error, setError] = useState("");
 
     useEffect(() => {
         let isMounted = true;
         apiRequest("/admin/dashboard", { admin: true })
-            .then((data) => { if (isMounted) setDashboard(data); })
+            .then((data) => {
+                if (!isMounted) return;
+                if (!data || typeof data !== "object" || Array.isArray(data)) {
+                    setError("Dữ liệu tổng quan không hợp lệ. Vui lòng thử tải lại trang.");
+                    return;
+                }
+                setDashboard({ ...EMPTY_DASHBOARD, ...data, orders: Array.isArray(data.orders) ? data.orders : [] });
+            })
             .catch((requestError) => { if (isMounted) setError(requestError.message); });
         return () => { isMounted = false; };
     }, []);
