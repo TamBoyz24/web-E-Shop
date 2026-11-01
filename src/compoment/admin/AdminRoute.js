@@ -1,10 +1,23 @@
-import React from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import React, { useEffect } from "react";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
 const AdminRoute = ({ children, ownerOnly = false }) => {
     const location = useLocation();
+    const navigate = useNavigate();
     const storedSession = localStorage.getItem("adminSession");
     const token = localStorage.getItem("adminToken");
+
+    useEffect(() => {
+        const handleExpiredSession = () => {
+            navigate("/admin/login", {
+                replace: true,
+                state: { from: location.pathname },
+            });
+        };
+        window.addEventListener("admin-session-expired", handleExpiredSession);
+        return () => window.removeEventListener("admin-session-expired", handleExpiredSession);
+    }, [location.pathname, navigate]);
+
     let session = null;
     try {
         session = storedSession ? JSON.parse(storedSession) : null;

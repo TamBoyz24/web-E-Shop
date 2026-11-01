@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import AdminRoute from "./AdminRoute";
 
@@ -59,6 +59,25 @@ test("redirects a malformed session to admin login", () => {
       </Routes>
     </MemoryRouter>
   );
+
+  expect(screen.getByText("admin login")).toBeInTheDocument();
+});
+
+test("redirects to login when the current admin session expires", () => {
+  render(
+    <MemoryRouter initialEntries={["/admin/users"]}>
+      <Routes>
+        <Route path="/admin/users" element={<AdminRoute><div>users</div></AdminRoute>} />
+        <Route path="/admin/login" element={<div>admin login</div>} />
+      </Routes>
+    </MemoryRouter>
+  );
+  localStorage.setItem("adminToken", "expired-token");
+  localStorage.setItem("adminSession", JSON.stringify({ role: "owner" }));
+
+  act(() => {
+    window.dispatchEvent(new Event("admin-session-expired"));
+  });
 
   expect(screen.getByText("admin login")).toBeInTheDocument();
 });

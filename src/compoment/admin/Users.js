@@ -204,7 +204,7 @@ const Users = () => {
                         <h2>Thêm người dùng</h2>
                         <label>Tên user<input value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} maxLength={80} required /></label>
                         <label>Số điện thoại<input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value.replace(/\D/g, "") })} minLength={10} maxLength={11} required /></label>
-                        <label>Mật khẩu<input type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} minLength={6} maxLength={50} required /></label>
+                        <label>Mật khẩu<input type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} minLength={6} maxLength={50} autoComplete="new-password" required /></label>
                         <button className="users-primary" type="submit">Tạo tài khoản</button>
                     </form>
                 </div>

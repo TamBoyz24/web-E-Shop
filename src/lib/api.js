@@ -2,6 +2,12 @@ const API_BASE_URL = (process.env.REACT_APP_API_URL || "/api").replace(/\/+$/, "
 export const ADMIN_TOKEN_KEY = "adminToken";
 export const USER_TOKEN_KEY = "userToken";
 
+function expireAdminSession() {
+    localStorage.removeItem(ADMIN_TOKEN_KEY);
+    localStorage.removeItem("adminSession");
+    window.dispatchEvent(new Event("admin-session-expired"));
+}
+
 export async function apiRequest(path, options = {}) {
     const { admin = false, user = false, ...requestOptions } = options;
     const headers = new Headers(requestOptions.headers || {});
@@ -14,7 +20,10 @@ export async function apiRequest(path, options = {}) {
     if (admin) {
         const token = localStorage.getItem(ADMIN_TOKEN_KEY);
         if (!token) {
-            throw new Error("Phiên quản trị đã hết hạn. Vui lòng đăng nhập lại.");
+            expireAdminSession();
+            const error = new Error("Phiên quản trị đã hết hạn. Vui lòng đăng nhập lại.");
+            error.status = 401;
+            throw error;
         }
         headers.set("Authorization", `Bearer ${token}`);
     }
@@ -35,7 +44,13 @@ export async function apiRequest(path, options = {}) {
     const payload = contentType.includes("application/json") ? await response.json() : null;
 
     if (!response.ok) {
-        const error = new Error(payload?.message || `Yêu cầu thất bại (${response.status}).`);
+        if (admin && response.status === 401) {
+            expireAdminSession();
+        }
+        const message = admin && response.status === 401
+            ? "Phiên quản trị đã hết hạn. Vui lòng đăng nhập lại."
+            : payload?.message || `Yêu cầu thất bại (${response.status}).`;
+        const error = new Error(message);
         error.status = response.status;
         throw error;
     }
