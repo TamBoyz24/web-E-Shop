@@ -16,6 +16,8 @@ The MongoDB database is named `AiPhoneStore`, with `products`, `users`, and `ord
 
 The first visit to the admin product page seeds an empty database from the browser's saved catalog, or from the built-in catalog if none is saved. Existing browser-stored orders are imported when the database has no orders; an existing customer account is migrated and its local password copy removed after that customer signs in successfully. Local development admin credentials are `admin` / `admin123`; change these and the JWT signing key before deployment. The cart remains in browser storage.
 
+Customers can track their orders on the profile page after signing in. The API issues a customer token at login, associates new orders with the authenticated account, and `GET /api/orders/mine` returns only that customer's orders. The profile page shows the order number, products, date, total, and current status; use **Làm mới** to fetch status updates.
+
 ## Production deployment
 
 The GitHub Actions workflow deploys the frontend, .NET API, and MongoDB together after changes are merged to `main`. Configure these GitHub Actions secrets in addition to the existing Docker Hub and EC2 secrets:

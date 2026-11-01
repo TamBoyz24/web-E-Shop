@@ -1,8 +1,9 @@
 const API_BASE_URL = (process.env.REACT_APP_API_URL || "/api").replace(/\/+$/, "");
 export const ADMIN_TOKEN_KEY = "adminToken";
+export const USER_TOKEN_KEY = "userToken";
 
 export async function apiRequest(path, options = {}) {
-    const { admin = false, ...requestOptions } = options;
+    const { admin = false, user = false, ...requestOptions } = options;
     const headers = new Headers(requestOptions.headers || {});
 
     if (requestOptions.body && typeof requestOptions.body !== "string") {
@@ -14,6 +15,14 @@ export async function apiRequest(path, options = {}) {
         const token = localStorage.getItem(ADMIN_TOKEN_KEY);
         if (!token) {
             throw new Error("Phiên quản trị đã hết hạn. Vui lòng đăng nhập lại.");
+        }
+        headers.set("Authorization", `Bearer ${token}`);
+    }
+
+    if (user) {
+        const token = localStorage.getItem(USER_TOKEN_KEY);
+        if (!token) {
+            throw new Error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
         }
         headers.set("Authorization", `Bearer ${token}`);
     }

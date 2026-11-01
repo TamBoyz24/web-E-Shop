@@ -1,16 +1,24 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiRequest, USER_TOKEN_KEY } from "../lib/api";
 import "./Profile.css";
 
-const defaultOrders = [
-  { id: "#1001", name: "iPhone 15 Pro Max", status: "Đã giao", total: 28990000, date: "12/09/2026" },
-  { id: "#1002", name: "Samsung Galaxy S24 Ultra", status: "Đang giao", total: 25990000, date: "08/09/2026" },
-  { id: "#1003", name: "Xiaomi Redmi Note 13 Pro", status: "Đã thanh toán", total: 7990000, date: "30/08/2026" }
-];
+const ORDER_STATUSES = {
+  pending: { label: "Chờ xác nhận", className: "neutral" },
+  confirmed: { label: "Đã xác nhận", className: "info" },
+  shipping: { label: "Đang giao", className: "warning" },
+  completed: { label: "Đã giao", className: "success" },
+  cancelled: { label: "Đã hủy", className: "danger" },
+};
 
 const Profile = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [ordersError, setOrdersError] = useState("");
+  const [ordersRequireLogin, setOrdersRequireLogin] = useState(false);
+  const [refreshCount, setRefreshCount] = useState(0);
 
   useEffect(() => {
     const savedUser = JSON.parse(localStorage.getItem("user") || localStorage.getItem("currentUser") || "null");
@@ -22,15 +30,43 @@ const Profile = () => {
         phone: savedUser.phone || "Chưa cập nhật",
         avatar: savedUser.avatar || "https://i.pravatar.cc/150?img=12",
         address: savedUser.address || "Chưa cập nhật địa chỉ",
-        orders: savedUser.orders || defaultOrders,
       });
     }
   }, []);
+
+  useEffect(() => {
+    if (!user) return undefined;
+
+    let isMounted = true;
+    const loadOrders = async () => {
+      setOrdersLoading(true);
+      setOrdersError("");
+      setOrdersRequireLogin(false);
+      try {
+        const result = await apiRequest("/orders/mine", { user: true });
+        if (!Array.isArray(result)) {
+          throw new Error("Máy chủ trả về danh sách đơn hàng không hợp lệ.");
+        }
+        if (isMounted) setOrders(result);
+      } catch (requestError) {
+        if (isMounted) {
+          setOrdersError(requestError.message);
+          setOrdersRequireLogin(requestError.status === 401 || !localStorage.getItem(USER_TOKEN_KEY));
+        }
+      } finally {
+        if (isMounted) setOrdersLoading(false);
+      }
+    };
+
+    loadOrders();
+    return () => { isMounted = false; };
+  }, [user, refreshCount]);
 
   const handleLogout = () => {
     localStorage.removeItem("user");
     localStorage.removeItem("currentUser");
     localStorage.removeItem("isLoggedIn");
+    localStorage.removeItem(USER_TOKEN_KEY);
     setUser(null);
     navigate("/login");
   };
@@ -47,7 +83,7 @@ const Profile = () => {
     );
   }
 
-  const totalSpent = (user.orders || []).reduce((sum, order) => sum + Number(order.total || 0), 0);
+  const totalSpent = orders.reduce((sum, order) => sum + Number(order.total || 0), 0);
 
   return (
     <div className="profile-page">
@@ -76,7 +112,7 @@ const Profile = () => {
           <section className="summary-grid">
             <div className="summary-card">
               <span className="label">Tổng đơn hàng</span>
-              <strong>{(user.orders || []).length}</strong>
+              <strong>{orders.length}</strong>
             </div>
             <div className="summary-card">
               <span className="label">Tổng chi tiêu</span>
@@ -115,29 +151,57 @@ const Profile = () => {
 
           <section className="orders-panel">
             <div className="section-header">
-              <h3>Đơn hàng gần đây</h3>
-              <button className="ghost-btn" type="button" onClick={() => navigate("/")}>Xem thêm</button>
+              <h3>Theo dõi đơn hàng</h3>
+              <button
+                className="ghost-btn"
+                type="button"
+                onClick={() => setRefreshCount((count) => count + 1)}
+                disabled={ordersLoading}
+              >
+                {ordersLoading ? "Đang tải..." : "Làm mới"}
+              </button>
             </div>
 
-            {(user.orders || []).length === 0 ? (
+            {ordersError && (
+              <div className="orders-error" role="alert">
+                <p>{ordersError}</p>
+                {ordersRequireLogin && (
+                  <button
+                    className="login-btn"
+                    type="button"
+                    onClick={() => navigate("/login", { state: { from: "/profile" } })}
+                  >
+                    Đăng nhập lại
+                  </button>
+                )}
+              </div>
+            )}
+            {ordersLoading ? (
+              <p className="empty-state" role="status">Đang tải trạng thái đơn hàng...</p>
+            ) : ordersError ? null : orders.length === 0 ? (
               <p className="empty-state">Bạn chưa có đơn hàng nào.</p>
             ) : (
               <div className="orders-list">
-                {(user.orders || []).map((order, index) => (
-                  <div className="order-item" key={`${order.id}-${index}`}>
-                    <div>
-                      <p className="order-id">{order.id}</p>
-                      <h4>{order.name}</h4>
+                {orders.map((order) => {
+                  const status = ORDER_STATUSES[order.status] || { label: order.status, className: "neutral" };
+                  const productNames = (order.items || []).map((item) => item.name).filter(Boolean).join(", ");
+                  const createdAt = new Date(order.createdAt);
+                  return (
+                    <div className="order-item" key={order.id}>
+                      <div>
+                        <p className="order-id">Mã đơn: {order.orderNumber}</p>
+                        <h4>{productNames || `${order.totalQuantity || 0} sản phẩm`}</h4>
+                      </div>
+                      <div className="order-meta">
+                        <time dateTime={order.createdAt}>{createdAt.toLocaleDateString("vi-VN")}</time>
+                        <span className={`badge ${status.className}`}>
+                          {status.label}
+                        </span>
+                      </div>
+                      <strong>{Number(order.total || 0).toLocaleString("vi-VN")}đ</strong>
                     </div>
-                    <div className="order-meta">
-                      <span>{order.date}</span>
-                      <span className={`badge ${order.status === "Đã giao" ? "success" : order.status === "Đang giao" ? "warning" : "neutral"}`}>
-                        {order.status}
-                      </span>
-                    </div>
-                    <strong>{Number(order.total).toLocaleString()}đ</strong>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </section>

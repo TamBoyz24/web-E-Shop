@@ -29,7 +29,10 @@ public static class ApiEndpoints
         products.MapGet("/{id}", GetPublicProduct);
 
         var orders = app.MapGroup("/api/orders");
-        orders.MapPost("/", CreateOrder);
+        orders.MapGet("/mine", GetCurrentUserOrders)
+            .RequireAuthorization(policy => policy.RequireClaim("userId"));
+        orders.MapPost("/", CreateOrder)
+            .RequireAuthorization(policy => policy.RequireClaim("userId"));
 
         var admin = app.MapGroup("/api/admin").RequireAuthorization();
         admin.MapGet("/products", GetAllProducts);
@@ -127,6 +130,7 @@ public static class ApiEndpoints
         UserLoginRequest request,
         MongoStoreDatabase database,
         IPasswordHasher<UserDocument> passwordHasher,
+        IConfiguration configuration,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Phone) || string.IsNullOrEmpty(request.Password))
@@ -145,7 +149,15 @@ public static class ApiEndpoints
             return Results.Unauthorized();
         }
 
-        return Results.Ok(ToUserResponse(user));
+        return Results.Ok(new
+        {
+            user.Id,
+            user.Username,
+            user.Phone,
+            user.Status,
+            user.CreatedAt,
+            token = CreateUserToken(user, configuration)
+        });
     }
 
     private static async Task<IResult> GetPublicProducts(
@@ -359,6 +371,7 @@ public static class ApiEndpoints
 
     private static async Task<IResult> CreateOrder(
         CreateOrderRequest request,
+        ClaimsPrincipal principal,
         MongoStoreDatabase database,
         CancellationToken cancellationToken)
     {
@@ -383,7 +396,7 @@ public static class ApiEndpoints
             Customer = request.Customer.Trim(),
             Phone = request.Phone,
             Address = request.Address.Trim(),
-            UserId = request.UserId,
+            UserId = principal.FindFirstValue("userId"),
             Items = request.Items.Select(item => new OrderItemDocument
             {
                 Id = item.Id,
@@ -402,6 +415,38 @@ public static class ApiEndpoints
 
         await database.Orders.InsertOneAsync(order, cancellationToken: cancellationToken);
         return Results.Created($"/api/admin/orders/{order.Id}", order);
+    }
+
+    private static async Task<IResult> GetCurrentUserOrders(
+        ClaimsPrincipal principal,
+        MongoStoreDatabase database,
+        CancellationToken cancellationToken)
+    {
+        var userId = principal.FindFirstValue("userId");
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Results.Unauthorized();
+        }
+
+        var orders = await database.Orders
+            .Find(order => order.UserId == userId)
+            .SortByDescending(order => order.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        return Results.Ok(orders.Select(order => new
+        {
+            order.Id,
+            order.OrderNumber,
+            order.Status,
+            order.Total,
+            order.TotalQuantity,
+            order.CreatedAt,
+            items = order.Items.Select(item => new
+            {
+                item.Name,
+                item.Quantity
+            })
+        }));
     }
 
     private static async Task<IResult> GetOrders(
@@ -590,6 +635,28 @@ public static class ApiEndpoints
         user.Status,
         user.CreatedAt
     };
+
+    private static string CreateUserToken(UserDocument user, IConfiguration configuration)
+    {
+        var now = DateTime.UtcNow;
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+            new Claim("userId", user.Id),
+            new Claim(ClaimTypes.Role, "customer")
+        };
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var token = new JwtSecurityToken(
+            issuer: configuration["Jwt:Issuer"],
+            audience: configuration["Jwt:Audience"],
+            claims: claims,
+            notBefore: now,
+            expires: now.AddHours(12),
+            signingCredentials: credentials);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
 
     private static bool IsValidPhone(string? phone) =>
         phone is not null && phone.Length is 10 or 11 && phone.All(char.IsDigit);

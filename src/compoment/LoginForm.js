@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { apiRequest } from "../lib/api";
+import { apiRequest, USER_TOKEN_KEY } from "../lib/api";
 import { readStorage } from "../lib/store";
 import "./LoginForm.css";
 
@@ -73,6 +73,10 @@ function LoginForm() {
         });
       }
 
+      if (!user.token) {
+        throw new Error("Máy chủ chưa cấp phiên đăng nhập. Vui lòng thử lại sau.");
+      }
+
       const legacyUsers = readStorage("users", []);
       if (Array.isArray(legacyUsers) && legacyUsers.some((item) => item.phone === phoneNumber)) {
         localStorage.setItem("users", JSON.stringify(legacyUsers.filter((item) => item.phone !== phoneNumber)));
@@ -83,6 +87,7 @@ function LoginForm() {
         "currentUser",
         JSON.stringify(user)
       );
+      localStorage.setItem(USER_TOKEN_KEY, user.token);
       localStorage.setItem("user", JSON.stringify(user));
 
       // Lưu trạng thái đăng nhập

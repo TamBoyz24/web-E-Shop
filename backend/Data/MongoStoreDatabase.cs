@@ -32,7 +32,13 @@ public sealed class MongoStoreDatabase
         var orderNumberIndex = new CreateIndexModel<OrderDocument>(
             Builders<OrderDocument>.IndexKeys.Ascending(order => order.OrderNumber),
             new CreateIndexOptions { Unique = true, Name = "unique_order_number" });
+        var userOrdersIndex = new CreateIndexModel<OrderDocument>(
+            Builders<OrderDocument>.IndexKeys
+                .Ascending(order => order.UserId)
+                .Descending(order => order.CreatedAt),
+            new CreateIndexOptions { Name = "user_orders_by_created_at" });
         await Users.Indexes.CreateOneAsync(phoneIndex, cancellationToken: cancellationToken);
         await Orders.Indexes.CreateOneAsync(orderNumberIndex, cancellationToken: cancellationToken);
+        await Orders.Indexes.CreateOneAsync(userOrdersIndex, cancellationToken: cancellationToken);
     }
 }

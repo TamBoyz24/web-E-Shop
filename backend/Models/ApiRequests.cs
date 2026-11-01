@@ -29,7 +29,6 @@ public sealed record CreateOrderRequest(
     string Customer,
     string Phone,
     string Address,
-    string? UserId,
     List<OrderItemInput> Items);
 public sealed record OrderStatusRequest(string Status);
 public sealed record LegacyOrderItemInput(
