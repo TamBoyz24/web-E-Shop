@@ -18,6 +18,8 @@ The first visit to the admin product page seeds an empty database from the brows
 
 Customers can track their orders on the profile page after signing in. The API issues a customer token at login, associates new orders with the authenticated account, and `GET /api/orders/mine` returns only that customer's orders. The profile page shows the order number, products, date, total, and current status; use **Làm mới** to fetch status updates.
 
+Customers who forget their password can submit a request from **Quên mật khẩu?** on the login page. Requests appear in Admin → Users. Because SMS verification is not configured, staff must verify the customer by phone before setting a new password. The audit log records the staff member and timestamp, never the password. Admins can create individual staff logins in Admin → Nhân viên admin; the configured `Admin:Username`/`Admin:Password` account is the owner account and is required to create or disable staff accounts.
+
 ## Production deployment
 
 The GitHub Actions workflow deploys the frontend, .NET API, and MongoDB together after changes are merged to `main`. Configure these GitHub Actions secrets in addition to the existing Docker Hub and EC2 secrets:

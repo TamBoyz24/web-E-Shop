@@ -14,4 +14,12 @@ public sealed class UserDocument
     public string PasswordHash { get; set; } = "";
     public string Status { get; set; } = "active";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public List<PasswordChangeRecord> PasswordChanges { get; set; } = [];
+}
+
+public sealed class PasswordChangeRecord
+{
+    public string AdminId { get; set; } = "";
+    public string AdminName { get; set; } = "";
+    public DateTime ChangedAt { get; set; } = DateTime.UtcNow;
 }

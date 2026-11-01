@@ -20,7 +20,12 @@ const AdminLogin = () => {
                 body: { username: username.trim(), password },
             });
             localStorage.setItem(ADMIN_TOKEN_KEY, session.token);
-            localStorage.setItem("adminSession", JSON.stringify({ username: session.username, role: "admin", expiresAt: session.expiresAt }));
+            localStorage.setItem("adminSession", JSON.stringify({
+                username: session.username,
+                displayName: session.displayName,
+                role: session.role,
+                expiresAt: session.expiresAt,
+            }));
             navigate("/admin");
         } catch (requestError) {
             setError(requestError.message);

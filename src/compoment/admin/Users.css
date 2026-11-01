@@ -21,6 +21,46 @@
     background: #fff;
 }
 
+.recovery-requests-panel {
+    margin-bottom: 20px;
+}
+
+.users-section-heading {
+    padding: 18px;
+    border-bottom: 1px solid #e8edf3;
+}
+
+.users-section-heading h2 {
+    margin: 0;
+    color: #172033;
+    font-size: 16px;
+}
+
+.users-section-heading p {
+    margin: 6px 0 0;
+    color: #718096;
+    font-size: 12px;
+}
+
+.recovery-customer-name,
+.password-audit small {
+    display: block;
+    margin-top: 5px;
+    color: #8995a7;
+    font-size: 11px;
+}
+
+.password-audit strong {
+    color: #172033;
+}
+
+.password-audit-note {
+    margin: 0;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
 .users-toolbar {
     display: flex;
     gap: 10px;
@@ -56,6 +96,14 @@
     width: 100%;
     min-width: 780px;
     border-collapse: collapse;
+}
+
+.customers-table {
+    min-width: 1120px;
+}
+
+.recovery-table {
+    min-width: 700px;
 }
 
 .users-table th {

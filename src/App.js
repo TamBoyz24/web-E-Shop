@@ -3,6 +3,7 @@ import { Route, BrowserRouter as Router, Routes, useLocation } from 'react-route
 import AuthForm from './compoment/AuthForm';
 import Cart from './compoment/Cart';
 import EditProfile from './compoment/EditProfile';
+import ForgotPassword from './compoment/ForgotPassword';
 import Footer from './compoment/Footer';
 import Home from './compoment/Home';
 import Navbar from './compoment/Navbar';
@@ -19,12 +20,13 @@ import RedmiPage from './pages/RedmiPage';
 import SamsungPage from './pages/SamsungPage';
 import Admin from './compoment/admin/Admin';
 import Users from './compoment/admin/Users';
+import AdminStaff from './compoment/admin/AdminStaff';
 import AdminLogin from './compoment/admin/AdminLogin';
 import AdminRoute from './compoment/admin/AdminRoute';
 
 const AppLayout = () => {
   const location = useLocation();
-  const isUtilityPage = ['/authform', '/login', '/admin/login', '/admin', '/admin/products', '/admin/users', '/admin/orders'].includes(location.pathname);
+  const isUtilityPage = ['/authform', '/login', '/forgot-password', '/admin/login', '/admin', '/admin/products', '/admin/users', '/admin/orders', '/admin/staff'].includes(location.pathname);
 
   return (
     <div className="app-shell">
@@ -44,10 +46,12 @@ const AppLayout = () => {
           <Route path="/iphone" element={<IphonePage />} />
           <Route path="/redmi" element={<RedmiPage />} />
           <Route path="/login" element={<LoginForm />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
           <Route path="/admin/products" element={<AdminRoute><ProductManagement /></AdminRoute>} />
           <Route path="/admin/users" element={<AdminRoute><Users /></AdminRoute>} />
+          <Route path="/admin/staff" element={<AdminRoute ownerOnly><AdminStaff /></AdminRoute>} />
           <Route path="/admin/orders" element={<AdminRoute><OrderManagement /></AdminRoute>} />
           <Route path="*" element={<Home />} />
         </Routes>
