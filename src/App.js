@@ -20,13 +20,15 @@ import RedmiPage from './pages/RedmiPage';
 import SamsungPage from './pages/SamsungPage';
 import Admin from './compoment/admin/Admin';
 import Users from './compoment/admin/Users';
+import UserDetails from './compoment/admin/UserDetails';
 import AdminStaff from './compoment/admin/AdminStaff';
 import AdminLogin from './compoment/admin/AdminLogin';
 import AdminRoute from './compoment/admin/AdminRoute';
 
 const AppLayout = () => {
   const location = useLocation();
-  const isUtilityPage = ['/authform', '/login', '/forgot-password', '/admin/login', '/admin', '/admin/products', '/admin/users', '/admin/orders', '/admin/staff'].includes(location.pathname);
+  const isUtilityPage = ['/authform', '/login', '/forgot-password', '/admin/login', '/admin', '/admin/products', '/admin/users', '/admin/orders', '/admin/staff'].includes(location.pathname)
+    || location.pathname.startsWith('/admin/users/');
 
   return (
     <div className="app-shell">
@@ -51,6 +53,7 @@ const AppLayout = () => {
           <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
           <Route path="/admin/products" element={<AdminRoute><ProductManagement /></AdminRoute>} />
           <Route path="/admin/users" element={<AdminRoute><Users /></AdminRoute>} />
+          <Route path="/admin/users/:id" element={<AdminRoute><UserDetails /></AdminRoute>} />
           <Route path="/admin/staff" element={<AdminRoute ownerOnly><AdminStaff /></AdminRoute>} />
           <Route path="/admin/orders" element={<AdminRoute><OrderManagement /></AdminRoute>} />
           <Route path="*" element={<Home />} />

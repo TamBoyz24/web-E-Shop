@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { apiRequest } from "../../lib/api";
 import AdminLayout from "./AdminLayout";
+import Toast from "../Toast";
 import "./Users.css";
 
 const Users = () => {
@@ -12,7 +14,12 @@ const Users = () => {
     const [formOpen, setFormOpen] = useState(false);
     const [passwordUser, setPasswordUser] = useState(null);
     const [newPassword, setNewPassword] = useState("");
-    const [form, setForm] = useState({ username: "", phone: "", password: "" });
+    const [profileUser, setProfileUser] = useState(null);
+    const [customerForm, setCustomerForm] = useState({ username: "", phone: "", email: "" });
+    const [toast, setToast] = useState(null);
+    const [form, setForm] = useState({ username: "", phone: "", email: "", password: "" });
+
+    const notify = (message, type = "success") => setToast({ message, type });
 
     useEffect(() => {
         let isMounted = true;
@@ -26,7 +33,7 @@ const Users = () => {
     }, []);
 
     const filteredUsers = useMemo(() => users.filter((user) => {
-        const value = `${user.username || user.name || ""} ${user.phone || ""}`.toLowerCase();
+        const value = `${user.username || user.name || ""} ${user.phone || ""} ${user.email || ""}`.toLowerCase();
         const status = user.status || "active";
         return value.includes(query.toLowerCase()) && (statusFilter === "all" || status === statusFilter);
     }), [users, query, statusFilter]);
@@ -38,13 +45,53 @@ const Users = () => {
             const newUser = await apiRequest("/admin/users", {
                 method: "POST",
                 admin: true,
-                body: { username: form.username.trim(), phone: form.phone.trim(), password: form.password },
+                body: {
+                    username: form.username.trim(),
+                    phone: form.phone.trim(),
+                    email: form.email.trim() || null,
+                    password: form.password,
+                },
             });
             setUsers((current) => [newUser, ...current]);
-            setForm({ username: "", phone: "", password: "" });
+            setForm({ username: "", phone: "", email: "", password: "" });
             setFormOpen(false);
+            notify("Đã thêm khách hàng mới.");
         } catch (requestError) {
             setError(requestError.message);
+            notify(requestError.message, "error");
+        }
+    };
+
+    const editCustomer = (user) => {
+        setProfileUser(user);
+        setCustomerForm({
+            username: user.username || user.name || "",
+            phone: user.phone || "",
+            email: user.email || "",
+        });
+    };
+
+    const saveCustomerProfile = async (event) => {
+        event.preventDefault();
+        if (!profileUser) return;
+        try {
+            const updatedUser = await apiRequest(`/admin/users/${profileUser.id}/profile`, {
+                method: "PUT",
+                admin: true,
+                body: {
+                    username: customerForm.username.trim(),
+                    phone: customerForm.phone.trim(),
+                    email: customerForm.email.trim() || null,
+                },
+            });
+            setUsers((current) => current.map((user) => user.id === updatedUser.id ? updatedUser : user));
+            setProfileUser(null);
+            setCustomerForm({ username: "", phone: "", email: "" });
+            setError("");
+            notify("Đã cập nhật thông tin khách hàng.");
+        } catch (requestError) {
+            setError(requestError.message);
+            notify(requestError.message, "error");
         }
     };
 
@@ -54,8 +101,10 @@ const Users = () => {
             await apiRequest(`/admin/users/${user.id}/status`, { method: "PATCH", body: { status }, admin: true });
             setUsers((current) => current.map((item) => item.id === user.id ? { ...item, status } : item));
             setError("");
+            notify(status === "active" ? "Đã mở khóa tài khoản." : "Đã khóa tài khoản.");
         } catch (requestError) {
             setError(requestError.message);
+            notify(requestError.message, "error");
         }
     };
 
@@ -65,8 +114,10 @@ const Users = () => {
             await apiRequest(`/admin/users/${user.id}`, { method: "DELETE", admin: true });
             setUsers((current) => current.filter((item) => item.id !== user.id));
             setError("");
+            notify("Đã xóa tài khoản khách hàng.");
         } catch (requestError) {
             setError(requestError.message);
+            notify(requestError.message, "error");
         }
     };
 
@@ -84,8 +135,10 @@ const Users = () => {
             setPasswordUser(null);
             setNewPassword("");
             setError("");
+            notify("Đã đặt lại mật khẩu khách hàng.");
         } catch (requestError) {
             setError(requestError.message);
+            notify(requestError.message, "error");
         }
     };
 
@@ -98,8 +151,10 @@ const Users = () => {
             });
             setRecoveryRequests((current) => current.filter((item) => item.id !== request.id));
             setError("");
+            notify("Đã đóng yêu cầu khôi phục.");
         } catch (requestError) {
             setError(requestError.message);
+            notify(requestError.message, "error");
         }
     };
 
@@ -120,6 +175,7 @@ const Users = () => {
             description="Quản lý tài khoản khách hàng, yêu cầu khôi phục và lịch sử đổi mật khẩu."
             action={<button className="users-primary" type="button" onClick={() => setFormOpen(true)}>+ Thêm người dùng</button>}
         >
+            <Toast message={toast?.message} type={toast?.type} onClose={() => setToast(null)} />
             {error && <p className="form-error" role="alert">{error}</p>}
 
             <div className="admin-kpi-row">
@@ -161,7 +217,7 @@ const Users = () => {
 
             <section className="users-panel">
                 <div className="users-toolbar">
-                    <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm tên user hoặc số điện thoại..." />
+                    <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm tên, số điện thoại hoặc email..." />
                     <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
                         <option value="all">Tất cả trạng thái</option>
                         <option value="active">Đang hoạt động</option>
@@ -170,7 +226,7 @@ const Users = () => {
                 </div>
                 <div className="users-table-wrap">
                     <table className="users-table customers-table">
-                        <thead><tr><th>NGƯỜI DÙNG</th><th>SỐ ĐIỆN THOẠI</th><th>NGÀY TẠO</th><th>LẦN ĐỔI MẬT KHẨU GẦN NHẤT</th><th>TRẠNG THÁI</th><th>THAO TÁC</th></tr></thead>
+                        <thead><tr><th>NGƯỜI DÙNG</th><th>SỐ ĐIỆN THOẠI</th><th>EMAIL</th><th>NGÀY TẠO</th><th>LẦN ĐỔI MẬT KHẨU GẦN NHẤT</th><th>TRẠNG THÁI</th><th>THAO TÁC</th></tr></thead>
                         <tbody>
                             {filteredUsers.map((user) => {
                                 const status = user.status || "active";
@@ -179,10 +235,13 @@ const Users = () => {
                                     <tr key={user.id}>
                                         <td><div className="user-cell"><span>{(user.username || user.name || "U").charAt(0).toUpperCase()}</span><div><strong>{user.username || user.name || "Chưa đặt tên"}</strong><small>ID: {user.id}</small></div></div></td>
                                         <td>{user.phone || "Chưa cập nhật"}</td>
+                                        <td>{user.email || <span className="customer-email-empty">Chưa có email</span>}</td>
                                         <td>{user.createdAt ? new Date(user.createdAt).toLocaleDateString("vi-VN") : "-"}</td>
                                         <td>{latestChange ? <span className="password-audit"><strong>{latestChange.adminName}</strong><small>{new Date(latestChange.changedAt).toLocaleString("vi-VN")}</small></span> : "Chưa đổi bởi admin"}</td>
                                         <td><button className={`user-status ${status}`} type="button" onClick={() => toggleStatus(user)}>{status === "active" ? "Đang hoạt động" : "Đã khóa"}</button></td>
                                         <td>
+                                            <Link className="user-action" to={`/admin/users/${user.id}`}>Chi tiết</Link>
+                                            <button className="user-action" type="button" onClick={() => editCustomer(user)}>Sửa thông tin</button>
                                             <button className="user-action" type="button" onClick={() => { setPasswordUser(user); setNewPassword(""); }}>Đổi mật khẩu</button>
                                             <button className="user-action" type="button" onClick={() => toggleStatus(user)}>{status === "active" ? "Khóa" : "Mở khóa"}</button>
                                             <button className="user-action danger" type="button" onClick={() => removeUser(user)}>Xóa</button>
@@ -204,8 +263,25 @@ const Users = () => {
                         <h2>Thêm người dùng</h2>
                         <label>Tên user<input value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} maxLength={80} required /></label>
                         <label>Số điện thoại<input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value.replace(/\D/g, "") })} minLength={10} maxLength={11} required /></label>
+                        <label>Email (không bắt buộc)<input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} maxLength={254} autoComplete="email" /></label>
                         <label>Mật khẩu<input type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} minLength={6} maxLength={50} autoComplete="new-password" required /></label>
                         <button className="users-primary" type="submit">Tạo tài khoản</button>
+                    </form>
+                </div>
+            )}
+
+            {profileUser && (
+                <div className="users-modal" onMouseDown={(event) => event.target === event.currentTarget && setProfileUser(null)}>
+                    <form className="user-form" onSubmit={saveCustomerProfile}>
+                        <button className="user-form-close" type="button" onClick={() => setProfileUser(null)}>×</button>
+                        <span className="admin-eyebrow">CUSTOMER PROFILE</span>
+                        <h2>Chỉnh sửa khách hàng</h2>
+                        <p>{profileUser.phone}</p>
+                        <label>Họ tên<input value={customerForm.username} onChange={(event) => setCustomerForm({ ...customerForm, username: event.target.value })} maxLength={80} required /></label>
+                        <label>Số điện thoại<input type="tel" inputMode="numeric" value={customerForm.phone} onChange={(event) => setCustomerForm({ ...customerForm, phone: event.target.value.replace(/\D/g, "") })} minLength={10} maxLength={11} required /></label>
+                        <label>Email (không bắt buộc)<input type="email" value={customerForm.email} onChange={(event) => setCustomerForm({ ...customerForm, email: event.target.value })} maxLength={254} autoComplete="email" /></label>
+                        <p className="password-audit-note">Thông tin được lưu vào tài khoản và sẽ hiển thị trong hồ sơ của khách hàng.</p>
+                        <button className="users-primary" type="submit">Lưu thông tin</button>
                     </form>
                 </div>
             )}

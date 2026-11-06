@@ -1,5 +1,7 @@
 .home-page {
     overflow: hidden;
+    color: var(--ink);
+    background: radial-gradient(circle at 88% 4%, rgba(245, 158, 11, .12), transparent 22%), var(--surface);
 }
 
 .home-intro {
@@ -107,7 +109,7 @@
     position: absolute;
     inset: 10% 8%;
     border-radius: 50% 50% 44% 44%;
-    background: linear-gradient(145deg, #ddebff, #fef4df);
+    background: linear-gradient(145deg, #cceee5, #fff0c9);
     transform: rotate(-8deg);
 }
 
@@ -141,7 +143,7 @@
     height: 48px;
     bottom: 35px;
     left: 5px;
-    border-color: rgba(255, 178, 62, .65);
+    border-color: rgba(245, 158, 11, .65);
 }
 
 .floating-price {
@@ -306,8 +308,8 @@
     left: 13px;
     padding: 5px 8px;
     border-radius: 6px;
-    color: #19734d;
-    background: #e6f7ee;
+    color: #17665d;
+    background: #dcf4ed;
     font-size: 10px;
     font-weight: 800;
 }
@@ -319,7 +321,7 @@
     padding: 22px;
     object-fit: contain;
     cursor: pointer;
-    background: #f8fafc;
+    background: #f5faf7;
 }
 
 .product-info {
@@ -398,7 +400,7 @@
 .detail-button {
     width: 40px;
     color: var(--brand);
-    background: #edf4ff;
+    background: #e3f4ef;
     font-size: 18px;
 }
 
@@ -408,7 +410,7 @@
     padding: 18px 22px;
     border-radius: 13px;
     color: var(--ink);
-    background: #eaf2ff;
+    background: #e2f3ed;
 }
 
 .logout-btn {

@@ -23,6 +23,17 @@ public sealed class OrderDocument
     public string Status { get; set; } = "pending";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public List<OrderStatusChange> StatusHistory { get; set; } = [];
+}
+
+public sealed class OrderStatusChange
+{
+    public string PreviousStatus { get; set; } = "";
+    public string NewStatus { get; set; } = "";
+    public string AdminId { get; set; } = "";
+    public string AdminName { get; set; } = "";
+    public string AdminRole { get; set; } = "";
+    public DateTime ChangedAt { get; set; } = DateTime.UtcNow;
 }
 
 public sealed class OrderItemDocument

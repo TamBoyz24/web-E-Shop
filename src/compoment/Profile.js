@@ -14,6 +14,7 @@ const ORDER_STATUSES = {
 const Profile = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [profileError, setProfileError] = useState("");
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [ordersError, setOrdersError] = useState("");
@@ -22,20 +23,41 @@ const Profile = () => {
 
   useEffect(() => {
     const savedUser = JSON.parse(localStorage.getItem("user") || localStorage.getItem("currentUser") || "null");
-    if (savedUser) {
-      setUser({
-        ...savedUser,
-        name: savedUser.name || savedUser.username || "Khách hàng",
-        email: savedUser.email || "customer@gmail.com",
-        phone: savedUser.phone || "Chưa cập nhật",
-        avatar: savedUser.avatar || "https://i.pravatar.cc/150?img=12",
-        address: savedUser.address || "Chưa cập nhật địa chỉ",
-      });
+    if (!savedUser) return undefined;
+
+    let isMounted = true;
+    const applyUser = (source) => ({
+      ...savedUser,
+      ...source,
+      name: source.name || source.username || savedUser.name || savedUser.username || "Khách hàng",
+      username: source.username || source.name || savedUser.username || savedUser.name || "Khách hàng",
+      email: source.email || "",
+      phone: source.phone || "Chưa cập nhật",
+      avatar: savedUser.avatar || "https://i.pravatar.cc/150?img=12",
+      address: savedUser.address || "Chưa cập nhật địa chỉ",
+    });
+
+    setUser(applyUser(savedUser));
+    setProfileError("");
+    if (localStorage.getItem(USER_TOKEN_KEY)) {
+      apiRequest("/users/me", { user: true })
+        .then((profile) => {
+          if (!isMounted) return;
+          const currentUser = applyUser(profile);
+          setUser(currentUser);
+          localStorage.setItem("user", JSON.stringify(currentUser));
+          localStorage.setItem("currentUser", JSON.stringify(currentUser));
+        })
+        .catch((requestError) => {
+          if (isMounted) setProfileError(requestError.message);
+        });
     }
-  }, []);
+
+    return () => { isMounted = false; };
+  }, [refreshCount]);
 
   useEffect(() => {
-    if (!user) return undefined;
+    if (!user?.id) return undefined;
 
     let isMounted = true;
     const loadOrders = async () => {
@@ -60,7 +82,7 @@ const Profile = () => {
 
     loadOrders();
     return () => { isMounted = false; };
-  }, [user, refreshCount]);
+  }, [user?.id, refreshCount]);
 
   const handleLogout = () => {
     localStorage.removeItem("user");
@@ -127,7 +149,15 @@ const Profile = () => {
           <section className="info-panel">
             <div className="section-header">
               <h3>Thông tin tài khoản</h3>
+              <button
+                className="ghost-btn"
+                type="button"
+                onClick={() => setRefreshCount((count) => count + 1)}
+              >
+                Làm mới thông tin
+              </button>
             </div>
+            {profileError && <p className="orders-error" role="alert">Không thể đồng bộ thông tin mới nhất: {profileError}</p>}
 
             <div className="info-grid">
               <div className="info-item">

@@ -99,7 +99,7 @@
 }
 
 .customers-table {
-    min-width: 1120px;
+    min-width: 1240px;
 }
 
 .recovery-table {
@@ -142,6 +142,11 @@
 .user-cell strong,
 .user-cell small {
     display: block;
+}
+
+.customer-email-empty {
+    color: #98a3b4;
+    font-style: italic;
 }
 
 .user-cell strong {

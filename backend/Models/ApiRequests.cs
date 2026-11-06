@@ -3,10 +3,12 @@ using System.Text.Json;
 namespace backend.Models;
 
 public sealed record AdminLoginRequest(string Username, string Password);
-public sealed record RegisterRequest(string Username, string Phone, string Password);
+public sealed record RegisterRequest(string Username, string Phone, string Password, string? Email = null);
 public sealed record UserLoginRequest(string Phone, string Password);
-public sealed record UserCreateRequest(string Username, string Phone, string Password);
+public sealed record UserCreateRequest(string Username, string Phone, string Password, string? Email = null);
 public sealed record UserStatusRequest(string Status);
+public sealed record UpdateCustomerEmailRequest(string? Email);
+public sealed record UpdateCustomerProfileRequest(string Username, string Phone, string? Email);
 /// <summary>Customer phone number requesting administrator-assisted account recovery.</summary>
 public sealed record PasswordRecoveryRequest(string Phone);
 /// <summary>New password set by an administrator after verifying the customer.</summary>

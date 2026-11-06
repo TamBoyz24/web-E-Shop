@@ -1,33 +1,95 @@
 .edit-profile-container {
-    padding: 20px;
-  }
-  
-  .edit-profile-form {
-    max-width: 500px;
-    margin: 0 auto;
-  }
-  
-  .input-group {
-    margin-bottom: 15px;
-  }
-  
-  .input-group label {
-    display: block;
-    font-size: 16px;
-  }
-  
-  .input-group input {
-    width: 100%;
-    padding: 10px;
-    font-size: 16px;
-    margin-top: 5px;
-  }
-  
-  .save-changes-btn {
-    padding: 10px 20px;
-    font-size: 16px;
-    background-color: green;
-    color: white;
-    cursor: pointer;
-  }
+  width: min(620px, calc(100% - 32px));
+  margin: 48px auto;
+  padding: clamp(22px, 5vw, 40px);
+  border: 1px solid #e3e8f0;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 18px 50px rgba(23, 32, 51, .08);
+}
+
+.edit-profile-container h1 {
+  margin: 0 0 26px;
+  color: #172033;
+  font-size: clamp(25px, 4vw, 34px);
+  letter-spacing: -.04em;
+}
+
+.edit-profile-form {
+  display: grid;
+  gap: 18px;
+}
+
+.input-group {
+  display: grid;
+  gap: 7px;
+}
+
+.input-group label {
+  color: #53647d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.input-group input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 13px;
+  border: 1px solid #dfe5ee;
+  border-radius: 10px;
+  color: #172033;
+  font: inherit;
+  outline: none;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.input-group input:focus {
+  border-color: #2878f0;
+  box-shadow: 0 0 0 3px rgba(40, 120, 240, .12);
+}
+
+.save-changes-btn,
+.edit-profile-back {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.save-changes-btn {
+  color: #fff;
+  background: #2878f0;
+  box-shadow: 0 8px 18px rgba(40, 120, 240, .2);
+}
+
+.save-changes-btn:hover:not(:disabled) {
+  background: #155ec9;
+}
+
+.save-changes-btn:disabled {
+  cursor: wait;
+  opacity: .7;
+}
+
+.edit-profile-back {
+  color: #53647d;
+  background: #f1f4f8;
+}
+
+.edit-profile-back:hover {
+  background: #e6ebf2;
+}
+
+.edit-profile-error {
+  margin: 0;
+  padding: 11px 13px;
+  border: 1px solid #f2bebe;
+  border-radius: 9px;
+  color: #a64040;
+  background: #fff7f7;
+  font-size: 13px;
+}
   
