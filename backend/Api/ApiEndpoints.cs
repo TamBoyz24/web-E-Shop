@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -23,13 +24,26 @@ public static class ApiEndpoints
         auth.MapPost("/admin/login", AdminLogin);
         auth.MapPost("/register", Register);
         auth.MapPost("/login", UserLogin);
+        auth.MapPost("/password-recovery-requests", SubmitPasswordRecoveryRequest)
+            .WithName("SubmitPasswordRecoveryRequest")
+            .WithSummary("Submit an administrator-assisted password recovery request")
+            .Produces(StatusCodes.Status202Accepted)
+            .Produces(StatusCodes.Status400BadRequest);
+
+        var customer = app.MapGroup("/api/users")
+            .RequireAuthorization(policy => policy.RequireClaim("userId"));
+        customer.MapGet("/me", GetCurrentUserProfile);
+        customer.MapPut("/me", UpdateCurrentUserProfile);
 
         var products = app.MapGroup("/api/products");
         products.MapGet("/", GetPublicProducts);
         products.MapGet("/{id}", GetPublicProduct);
 
         var orders = app.MapGroup("/api/orders");
-        orders.MapPost("/", CreateOrder);
+        orders.MapGet("/mine", GetCurrentUserOrders)
+            .RequireAuthorization(policy => policy.RequireClaim("userId"));
+        orders.MapPost("/", CreateOrder)
+            .RequireAuthorization(policy => policy.RequireClaim("userId"));
 
         var admin = app.MapGroup("/api/admin").RequireAuthorization();
         admin.MapGet("/products", GetAllProducts);
@@ -39,36 +53,88 @@ public static class ApiEndpoints
         admin.MapDelete("/products/{id}", DeleteProduct);
         admin.MapGet("/users", GetUsers);
         admin.MapPost("/users", CreateUser);
+        admin.MapGet("/users/{id}", GetUser);
+        admin.MapPut("/users/{id}/profile", UpdateCustomerProfile);
+        admin.MapPatch("/users/{id}/email", UpdateCustomerEmail);
+        admin.MapPatch("/users/{id}/password", ResetCustomerPassword);
         admin.MapPatch("/users/{id}/status", UpdateUserStatus);
         admin.MapDelete("/users/{id}", DeleteUser);
+        admin.MapGet("/password-recovery-requests", GetPasswordRecoveryRequests);
+        admin.MapPatch("/password-recovery-requests/{id}", UpdatePasswordRecoveryRequest);
         admin.MapGet("/orders", GetOrders);
+        admin.MapGet("/orders/pending-count", GetPendingOrderCount);
         admin.MapPost("/orders/import", ImportLegacyOrders);
         admin.MapPatch("/orders/{id}/status", UpdateOrderStatus);
         admin.MapDelete("/orders/{id}", DeleteOrder);
         admin.MapGet("/dashboard", GetDashboard);
+
+        var staff = app.MapGroup("/api/admin/staff")
+            .RequireAuthorization(policy => policy.RequireClaim("adminLevel", "owner"));
+        staff.MapGet("/", GetAdminStaff);
+        staff.MapPost("/", CreateAdminStaff);
+        staff.MapPatch("/{id}/status", UpdateAdminStaffStatus);
     }
 
-    private static IResult AdminLogin(
+    private static async Task<IResult> AdminLogin(
         AdminLoginRequest request,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        MongoStoreDatabase database,
+        IPasswordHasher<AdminUserDocument> passwordHasher,
+        CancellationToken cancellationToken)
     {
         var configuredUsername = configuration["Admin:Username"];
         var configuredPassword = configuration["Admin:Password"];
-        if (string.IsNullOrWhiteSpace(request.Username)
-            || string.IsNullOrWhiteSpace(request.Password)
-            || string.IsNullOrWhiteSpace(configuredUsername)
-            || string.IsNullOrWhiteSpace(configuredPassword)
-            || !FixedTimeEquals(request.Username, configuredUsername)
-            || !FixedTimeEquals(request.Password, configuredPassword))
+        var username = request.Username?.Trim();
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(request.Password))
         {
             return Results.Unauthorized();
+        }
+
+        string adminId;
+        string displayName;
+        string role;
+        if (!string.IsNullOrWhiteSpace(configuredUsername)
+            && string.Equals(username, configuredUsername, StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(configuredPassword)
+                || !FixedTimeEquals(request.Password, configuredPassword))
+            {
+                return Results.Unauthorized();
+            }
+
+            adminId = "configured-admin";
+            username = configuredUsername;
+            displayName = configuredUsername;
+            role = "owner";
+        }
+        else
+        {
+            var admin = await database.AdminUsers
+                .Find(candidate => candidate.Username == username.ToLowerInvariant())
+                .FirstOrDefaultAsync(cancellationToken);
+            if (admin is null
+                || admin.Status != "active"
+                || passwordHasher.VerifyHashedPassword(admin, admin.PasswordHash, request.Password)
+                    == PasswordVerificationResult.Failed)
+            {
+                return Results.Unauthorized();
+            }
+
+            adminId = admin.Id;
+            username = admin.Username;
+            displayName = admin.DisplayName;
+            role = "staff";
         }
 
         var now = DateTime.UtcNow;
         var claims = new[]
         {
-            new Claim(JwtRegisteredClaimNames.Sub, configuredUsername),
-            new Claim(ClaimTypes.Role, "admin")
+            new Claim(JwtRegisteredClaimNames.Sub, adminId),
+            new Claim(ClaimTypes.Role, "admin"),
+            new Claim("adminId", adminId),
+            new Claim("adminName", displayName),
+            new Claim("adminUsername", username),
+            new Claim("adminLevel", role)
         };
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -82,7 +148,9 @@ public static class ApiEndpoints
 
         return Results.Ok(new
         {
-            username = configuredUsername,
+            username,
+            displayName,
+            role,
             token = new JwtSecurityTokenHandler().WriteToken(token),
             expiresAt = token.ValidTo
         });
@@ -97,17 +165,20 @@ public static class ApiEndpoints
         if (string.IsNullOrWhiteSpace(request.Username)
             || request.Username.Trim().Length > 80
             || !IsValidPhone(request.Phone)
+            || !IsValidEmail(request.Email)
             || string.IsNullOrEmpty(request.Password)
             || request.Password.Length is < 6 or > 50)
         {
-            return Results.BadRequest(new { message = "Vui lòng nhập tên, số điện thoại hợp lệ và mật khẩu từ 6 đến 50 ký tự." });
+            return Results.BadRequest(new { message = "Vui lòng nhập tên, số điện thoại hợp lệ, email hợp lệ nếu có và mật khẩu từ 6 đến 50 ký tự." });
         }
 
         var user = new UserDocument
         {
             Username = request.Username.Trim(),
             Phone = request.Phone,
-            CreatedAt = DateTime.UtcNow
+            Email = NormalizeEmail(request.Email),
+            CreatedAt = DateTime.UtcNow,
+            CreatedByAdminName = "Khách tự đăng ký"
         };
         user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
 
@@ -127,6 +198,7 @@ public static class ApiEndpoints
         UserLoginRequest request,
         MongoStoreDatabase database,
         IPasswordHasher<UserDocument> passwordHasher,
+        IConfiguration configuration,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Phone) || string.IsNullOrEmpty(request.Password))
@@ -145,7 +217,52 @@ public static class ApiEndpoints
             return Results.Unauthorized();
         }
 
-        return Results.Ok(ToUserResponse(user));
+        return Results.Ok(new
+        {
+            user.Id,
+            user.Username,
+            user.Phone,
+            user.Email,
+            user.Status,
+            user.CreatedAt,
+            token = CreateUserToken(user, configuration)
+        });
+    }
+
+    private static async Task<IResult> SubmitPasswordRecoveryRequest(
+        PasswordRecoveryRequest request,
+        MongoStoreDatabase database,
+        CancellationToken cancellationToken)
+    {
+        var phone = request.Phone?.Trim();
+        if (string.IsNullOrWhiteSpace(phone) || !IsValidPhone(phone))
+        {
+            return Results.BadRequest(new { message = "Vui lòng nhập số điện thoại gồm 10 hoặc 11 chữ số." });
+        }
+
+        var genericResponse = new
+        {
+            message = "Nếu số điện thoại đã đăng ký, yêu cầu sẽ được chuyển tới quản trị viên để xác minh."
+        };
+        var userExists = await database.Users
+            .Find(user => user.Phone == phone)
+            .AnyAsync(cancellationToken);
+        if (!userExists)
+        {
+            return Results.Accepted(value: genericResponse);
+        }
+
+        var recentRequestExists = await database.PasswordRecoveryRequests
+            .Find(recovery => recovery.Phone == phone && recovery.CreatedAt >= DateTime.UtcNow.AddMinutes(-15))
+            .AnyAsync(cancellationToken);
+        if (!recentRequestExists)
+        {
+            await database.PasswordRecoveryRequests.InsertOneAsync(
+                new PasswordRecoveryRequestDocument { Phone = phone },
+                cancellationToken: cancellationToken);
+        }
+
+        return Results.Accepted(value: genericResponse);
     }
 
     private static async Task<IResult> GetPublicProducts(
@@ -282,11 +399,58 @@ public static class ApiEndpoints
         var users = await database.Users.Find(Builders<UserDocument>.Filter.Empty)
             .SortByDescending(user => user.CreatedAt)
             .ToListAsync(cancellationToken);
-        return Results.Ok(users.Select(ToUserResponse));
+        return Results.Ok(users.Select(user => ToUserResponse(user, includeAudit: true)));
+    }
+
+    private static async Task<IResult> GetUser(
+        string id,
+        MongoStoreDatabase database,
+        CancellationToken cancellationToken)
+    {
+        if (!ObjectId.TryParse(id, out _))
+        {
+            return Results.NotFound();
+        }
+
+        var user = await database.Users.Find(customer => customer.Id == id)
+            .FirstOrDefaultAsync(cancellationToken);
+        return user is null ? Results.NotFound() : Results.Ok(ToUserResponse(user, includeAudit: true));
+    }
+
+    private static async Task<IResult> GetCurrentUserProfile(
+        ClaimsPrincipal principal,
+        MongoStoreDatabase database,
+        CancellationToken cancellationToken)
+    {
+        var userId = principal.FindFirstValue("userId");
+        if (userId is null || !ObjectId.TryParse(userId, out _))
+        {
+            return Results.Unauthorized();
+        }
+
+        var user = await database.Users.Find(customer => customer.Id == userId)
+            .FirstOrDefaultAsync(cancellationToken);
+        return user is null ? Results.NotFound() : Results.Ok(ToUserResponse(user));
+    }
+
+    private static async Task<IResult> UpdateCurrentUserProfile(
+        UpdateCustomerProfileRequest request,
+        ClaimsPrincipal principal,
+        MongoStoreDatabase database,
+        CancellationToken cancellationToken)
+    {
+        var userId = principal.FindFirstValue("userId");
+        if (userId is null || !ObjectId.TryParse(userId, out _))
+        {
+            return Results.Unauthorized();
+        }
+
+        return await SaveCustomerProfile(userId, request, principal, database, cancellationToken);
     }
 
     private static async Task<IResult> CreateUser(
         UserCreateRequest request,
+        ClaimsPrincipal principal,
         MongoStoreDatabase database,
         IPasswordHasher<UserDocument> passwordHasher,
         CancellationToken cancellationToken)
@@ -294,17 +458,21 @@ public static class ApiEndpoints
         if (string.IsNullOrWhiteSpace(request.Username)
             || request.Username.Trim().Length > 80
             || !IsValidPhone(request.Phone)
+            || !IsValidEmail(request.Email)
             || string.IsNullOrEmpty(request.Password)
             || request.Password.Length is < 6 or > 50)
         {
-            return Results.BadRequest(new { message = "Vui lòng nhập tên, số điện thoại hợp lệ và mật khẩu từ 6 đến 50 ký tự." });
+            return Results.BadRequest(new { message = "Vui lòng nhập tên, số điện thoại hợp lệ, email hợp lệ nếu có và mật khẩu từ 6 đến 50 ký tự." });
         }
 
         var user = new UserDocument
         {
             Username = request.Username.Trim(),
             Phone = request.Phone,
-            CreatedAt = DateTime.UtcNow
+            Email = NormalizeEmail(request.Email),
+            CreatedAt = DateTime.UtcNow,
+            CreatedByAdminId = principal.FindFirstValue("adminId"),
+            CreatedByAdminName = GetAdminActorName(principal)
         };
         user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
 
@@ -317,12 +485,306 @@ public static class ApiEndpoints
             return Results.Conflict(new { message = "Số điện thoại này đã được đăng ký." });
         }
 
-        return Results.Created($"/api/admin/users/{user.Id}", ToUserResponse(user));
+        return Results.Created($"/api/admin/users/{user.Id}", ToUserResponse(user, includeAudit: true));
+    }
+
+    private static async Task<IResult> UpdateCustomerProfile(
+        string id,
+        UpdateCustomerProfileRequest request,
+        ClaimsPrincipal principal,
+        MongoStoreDatabase database,
+        CancellationToken cancellationToken)
+    {
+        if (!ObjectId.TryParse(id, out _))
+        {
+            return Results.NotFound();
+        }
+
+        return await SaveCustomerProfile(id, request, principal, database, cancellationToken);
+    }
+
+    private static async Task<IResult> SaveCustomerProfile(
+        string id,
+        UpdateCustomerProfileRequest request,
+        ClaimsPrincipal principal,
+        MongoStoreDatabase database,
+        CancellationToken cancellationToken)
+    {
+        var username = request.Username?.Trim();
+        var phone = request.Phone?.Trim();
+        if (string.IsNullOrWhiteSpace(username)
+            || username.Length > 80
+            || !IsValidPhone(phone)
+            || !IsValidEmail(request.Email))
+        {
+            return Results.BadRequest(new
+            {
+                message = "Vui lòng nhập tên, số điện thoại hợp lệ và email hợp lệ nếu có."
+            });
+        }
+
+        var existingUser = await database.Users.Find(user => user.Id == id)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (existingUser is null)
+        {
+            return Results.NotFound();
+        }
+
+        var changes = new List<string>();
+        AddProfileChange(changes, "Họ tên", existingUser.Username, username);
+        AddProfileChange(changes, "Số điện thoại", existingUser.Phone, phone);
+        AddProfileChange(changes, "Email", existingUser.Email, NormalizeEmail(request.Email));
+        if (changes.Count == 0)
+        {
+            return Results.Ok(ToUserResponse(existingUser, principal.HasClaim("adminLevel", "owner")
+                || principal.HasClaim("adminLevel", "staff")));
+        }
+
+        var update = Builders<UserDocument>.Update
+            .Set(user => user.Username, username)
+            .Set(user => user.Phone, phone!)
+            .Set(user => user.Email, NormalizeEmail(request.Email))
+            .Push(user => user.ProfileChanges, CreateProfileChange(principal, changes));
+        try
+        {
+            var user = await database.Users.FindOneAndUpdateAsync(
+                customer => customer.Id == id,
+                update,
+                new FindOneAndUpdateOptions<UserDocument> { ReturnDocument = ReturnDocument.After },
+                cancellationToken);
+            return user is null
+                ? Results.NotFound()
+                : Results.Ok(ToUserResponse(user, principal.HasClaim("adminLevel", "owner")
+                    || principal.HasClaim("adminLevel", "staff")));
+        }
+        catch (MongoWriteException exception) when (exception.WriteError?.Category == ServerErrorCategory.DuplicateKey)
+        {
+            return Results.Conflict(new { message = "Số điện thoại này đã được đăng ký cho tài khoản khác." });
+        }
+    }
+
+    private static async Task<IResult> UpdateCustomerEmail(
+        string id,
+        UpdateCustomerEmailRequest request,
+        ClaimsPrincipal principal,
+        MongoStoreDatabase database,
+        CancellationToken cancellationToken)
+    {
+        if (!ObjectId.TryParse(id, out _))
+        {
+            return Results.NotFound();
+        }
+        if (!IsValidEmail(request.Email))
+        {
+            return Results.BadRequest(new { message = "Vui lòng nhập địa chỉ email hợp lệ (tối đa 254 ký tự)." });
+        }
+
+        var existingUser = await database.Users.Find(user => user.Id == id)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (existingUser is null)
+        {
+            return Results.NotFound();
+        }
+
+        var email = NormalizeEmail(request.Email);
+        if (string.Equals(existingUser.Email, email, StringComparison.Ordinal))
+        {
+            return Results.Ok(ToUserResponse(existingUser, includeAudit: true));
+        }
+
+        var changes = new List<string>();
+        AddProfileChange(changes, "Email", existingUser.Email, email);
+        var update = Builders<UserDocument>.Update
+            .Set(user => user.Email, email)
+            .Push(user => user.ProfileChanges, CreateProfileChange(principal, changes));
+        var user = await database.Users.FindOneAndUpdateAsync(
+            customer => customer.Id == id,
+            update,
+            new FindOneAndUpdateOptions<UserDocument> { ReturnDocument = ReturnDocument.After },
+            cancellationToken);
+        return user is null ? Results.NotFound() : Results.Ok(ToUserResponse(user, includeAudit: true));
+    }
+
+    private static async Task<IResult> ResetCustomerPassword(
+        string id,
+        ResetCustomerPasswordRequest request,
+        ClaimsPrincipal principal,
+        MongoStoreDatabase database,
+        IPasswordHasher<UserDocument> passwordHasher,
+        CancellationToken cancellationToken)
+    {
+        if (!ObjectId.TryParse(id, out _))
+        {
+            return Results.NotFound();
+        }
+        if (string.IsNullOrEmpty(request.Password) || request.Password.Length is < 6 or > 50)
+        {
+            return Results.BadRequest(new { message = "Mật khẩu mới phải có từ 6 đến 50 ký tự." });
+        }
+
+        var user = await database.Users.Find(candidate => candidate.Id == id)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (user is null)
+        {
+            return Results.NotFound();
+        }
+
+        var changedAt = DateTime.UtcNow;
+        var audit = new PasswordChangeRecord
+        {
+            AdminId = principal.FindFirstValue("adminId") ?? "unknown-admin",
+            AdminName = principal.FindFirstValue("adminName") ?? principal.Identity?.Name ?? "Admin",
+            ChangedAt = changedAt
+        };
+        var update = Builders<UserDocument>.Update
+            .Set(candidate => candidate.PasswordHash, passwordHasher.HashPassword(user, request.Password))
+            .Push(candidate => candidate.PasswordChanges, audit);
+        var result = await database.Users.UpdateOneAsync(
+            candidate => candidate.Id == id,
+            update,
+            cancellationToken: cancellationToken);
+        if (result.MatchedCount == 0)
+        {
+            return Results.NotFound();
+        }
+
+        await database.PasswordRecoveryRequests.UpdateManyAsync(
+            recovery => recovery.Phone == user.Phone && recovery.Status == "pending",
+            Builders<PasswordRecoveryRequestDocument>.Update
+                .Set(recovery => recovery.Status, "resolved")
+                .Set(recovery => recovery.ResolvedByAdminId, audit.AdminId)
+                .Set(recovery => recovery.ResolvedByAdminName, audit.AdminName)
+                .Set(recovery => recovery.ResolvedAt, changedAt),
+            cancellationToken: cancellationToken);
+
+        user.PasswordChanges.Add(audit);
+        return Results.Ok(ToUserResponse(user, includeAudit: true));
+    }
+
+    private static async Task<IResult> GetPasswordRecoveryRequests(
+        MongoStoreDatabase database,
+        CancellationToken cancellationToken)
+    {
+        var requests = await database.PasswordRecoveryRequests
+            .Find(recovery => recovery.Status == "pending")
+            .SortBy(recovery => recovery.CreatedAt)
+            .ToListAsync(cancellationToken);
+        return Results.Ok(requests.Select(recovery => new
+        {
+            recovery.Id,
+            recovery.Phone,
+            recovery.Status,
+            recovery.CreatedAt
+        }));
+    }
+
+    private static async Task<IResult> UpdatePasswordRecoveryRequest(
+        string id,
+        PasswordRecoveryStatusRequest request,
+        ClaimsPrincipal principal,
+        MongoStoreDatabase database,
+        CancellationToken cancellationToken)
+    {
+        if (!ObjectId.TryParse(id, out _))
+        {
+            return Results.NotFound();
+        }
+        if (request.Status is not "resolved" and not "dismissed")
+        {
+            return Results.BadRequest(new { message = "Trạng thái yêu cầu không hợp lệ." });
+        }
+
+        var update = Builders<PasswordRecoveryRequestDocument>.Update
+            .Set(recovery => recovery.Status, request.Status)
+            .Set(recovery => recovery.ResolvedByAdminId, principal.FindFirstValue("adminId"))
+            .Set(recovery => recovery.ResolvedByAdminName, principal.FindFirstValue("adminName"))
+            .Set(recovery => recovery.ResolvedAt, DateTime.UtcNow);
+        var result = await database.PasswordRecoveryRequests.UpdateOneAsync(
+            recovery => recovery.Id == id && recovery.Status == "pending",
+            update,
+            cancellationToken: cancellationToken);
+        return result.MatchedCount == 0 ? Results.NotFound() : Results.NoContent();
+    }
+
+    private static async Task<IResult> GetAdminStaff(
+        MongoStoreDatabase database,
+        CancellationToken cancellationToken)
+    {
+        var staff = await database.AdminUsers.Find(Builders<AdminUserDocument>.Filter.Empty)
+            .SortBy(admin => admin.Username)
+            .ToListAsync(cancellationToken);
+        return Results.Ok(staff.Select(ToAdminStaffResponse));
+    }
+
+    private static async Task<IResult> CreateAdminStaff(
+        CreateAdminStaffRequest request,
+        IConfiguration configuration,
+        MongoStoreDatabase database,
+        IPasswordHasher<AdminUserDocument> passwordHasher,
+        CancellationToken cancellationToken)
+    {
+        var username = request.Username?.Trim().ToLowerInvariant();
+        var displayName = request.DisplayName?.Trim();
+        if (string.IsNullOrWhiteSpace(username)
+            || username.Length > 40
+            || !username.All(character => char.IsAsciiLetterOrDigit(character) || character is '.' or '_' or '-')
+            || string.Equals(username, configuration["Admin:Username"], StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrWhiteSpace(displayName)
+            || displayName.Length > 80
+            || string.IsNullOrEmpty(request.Password)
+            || request.Password.Length is < 8 or > 100)
+        {
+            return Results.BadRequest(new
+            {
+                message = "Tên đăng nhập, tên hiển thị hoặc mật khẩu không hợp lệ. Mật khẩu nhân viên cần từ 8 ký tự."
+            });
+        }
+
+        var admin = new AdminUserDocument
+        {
+            Username = username,
+            DisplayName = displayName,
+            PasswordHash = passwordHasher.HashPassword(new AdminUserDocument(), request.Password),
+            CreatedAt = DateTime.UtcNow
+        };
+        try
+        {
+            await database.AdminUsers.InsertOneAsync(admin, cancellationToken: cancellationToken);
+        }
+        catch (MongoWriteException exception) when (exception.WriteError?.Category == ServerErrorCategory.DuplicateKey)
+        {
+            return Results.Conflict(new { message = "Tên đăng nhập admin này đã được sử dụng." });
+        }
+
+        return Results.Created($"/api/admin/staff/{admin.Id}", ToAdminStaffResponse(admin));
+    }
+
+    private static async Task<IResult> UpdateAdminStaffStatus(
+        string id,
+        AdminStaffStatusRequest request,
+        MongoStoreDatabase database,
+        CancellationToken cancellationToken)
+    {
+        if (!ObjectId.TryParse(id, out _))
+        {
+            return Results.NotFound();
+        }
+        if (request.Status is not "active" and not "blocked")
+        {
+            return Results.BadRequest(new { message = "Trạng thái tài khoản nhân viên không hợp lệ." });
+        }
+
+        var result = await database.AdminUsers.UpdateOneAsync(
+            admin => admin.Id == id,
+            Builders<AdminUserDocument>.Update.Set(admin => admin.Status, request.Status),
+            cancellationToken: cancellationToken);
+        return result.MatchedCount == 0 ? Results.NotFound() : Results.NoContent();
     }
 
     private static async Task<IResult> UpdateUserStatus(
         string id,
         UserStatusRequest request,
+        ClaimsPrincipal principal,
         MongoStoreDatabase database,
         CancellationToken cancellationToken)
     {
@@ -335,12 +797,28 @@ public static class ApiEndpoints
             return Results.BadRequest(new { message = "Trạng thái tài khoản không hợp lệ." });
         }
 
-        var update = Builders<UserDocument>.Update.Set(user => user.Status, request.Status);
-        var result = await database.Users.UpdateOneAsync(
-            user => user.Id == id,
+        var existingUser = await database.Users.Find(user => user.Id == id)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (existingUser is null)
+        {
+            return Results.NotFound();
+        }
+
+        if (existingUser.Status == request.Status)
+        {
+            return Results.Ok(ToUserResponse(existingUser, includeAudit: true));
+        }
+
+        var changes = new List<string> { $"Trạng thái: {existingUser.Status} -> {request.Status}" };
+        var update = Builders<UserDocument>.Update
+            .Set(user => user.Status, request.Status)
+            .Push(user => user.ProfileChanges, CreateProfileChange(principal, changes));
+        var user = await database.Users.FindOneAndUpdateAsync(
+            customer => customer.Id == id,
             update,
-            cancellationToken: cancellationToken);
-        return result.MatchedCount == 0 ? Results.NotFound() : Results.NoContent();
+            new FindOneAndUpdateOptions<UserDocument> { ReturnDocument = ReturnDocument.After },
+            cancellationToken);
+        return user is null ? Results.NotFound() : Results.Ok(ToUserResponse(user, includeAudit: true));
     }
 
     private static async Task<IResult> DeleteUser(
@@ -359,6 +837,7 @@ public static class ApiEndpoints
 
     private static async Task<IResult> CreateOrder(
         CreateOrderRequest request,
+        ClaimsPrincipal principal,
         MongoStoreDatabase database,
         CancellationToken cancellationToken)
     {
@@ -383,7 +862,7 @@ public static class ApiEndpoints
             Customer = request.Customer.Trim(),
             Phone = request.Phone,
             Address = request.Address.Trim(),
-            UserId = request.UserId,
+            UserId = principal.FindFirstValue("userId"),
             Items = request.Items.Select(item => new OrderItemDocument
             {
                 Id = item.Id,
@@ -404,6 +883,38 @@ public static class ApiEndpoints
         return Results.Created($"/api/admin/orders/{order.Id}", order);
     }
 
+    private static async Task<IResult> GetCurrentUserOrders(
+        ClaimsPrincipal principal,
+        MongoStoreDatabase database,
+        CancellationToken cancellationToken)
+    {
+        var userId = principal.FindFirstValue("userId");
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Results.Unauthorized();
+        }
+
+        var orders = await database.Orders
+            .Find(order => order.UserId == userId)
+            .SortByDescending(order => order.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        return Results.Ok(orders.Select(order => new
+        {
+            order.Id,
+            order.OrderNumber,
+            order.Status,
+            order.Total,
+            order.TotalQuantity,
+            order.CreatedAt,
+            items = order.Items.Select(item => new
+            {
+                item.Name,
+                item.Quantity
+            })
+        }));
+    }
+
     private static async Task<IResult> GetOrders(
         MongoStoreDatabase database,
         CancellationToken cancellationToken)
@@ -412,6 +923,16 @@ public static class ApiEndpoints
             .SortByDescending(order => order.CreatedAt)
             .ToListAsync(cancellationToken);
         return Results.Ok(orders);
+    }
+
+    private static async Task<IResult> GetPendingOrderCount(
+        MongoStoreDatabase database,
+        CancellationToken cancellationToken)
+    {
+        var count = await database.Orders.CountDocumentsAsync(
+            order => order.Status == "pending",
+            cancellationToken: cancellationToken);
+        return Results.Ok(new { count });
     }
 
     private static async Task<IResult> ImportLegacyOrders(
@@ -476,6 +997,7 @@ public static class ApiEndpoints
     private static async Task<IResult> UpdateOrderStatus(
         string id,
         OrderStatusRequest request,
+        ClaimsPrincipal principal,
         MongoStoreDatabase database,
         CancellationToken cancellationToken)
     {
@@ -488,14 +1010,35 @@ public static class ApiEndpoints
             return Results.BadRequest(new { message = "Trạng thái đơn hàng không hợp lệ." });
         }
 
+        var existingOrder = await database.Orders.Find(order => order.Id == id)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (existingOrder is null)
+        {
+            return Results.NotFound();
+        }
+
+        if (existingOrder.Status == request.Status)
+        {
+            return Results.Ok(existingOrder);
+        }
+
         var update = Builders<OrderDocument>.Update
             .Set(order => order.Status, request.Status)
-            .Set(order => order.UpdatedAt, DateTime.UtcNow);
-        var result = await database.Orders.UpdateOneAsync(
-            order => order.Id == id,
+            .Set(order => order.UpdatedAt, DateTime.UtcNow)
+            .Push(order => order.StatusHistory, new OrderStatusChange
+            {
+                PreviousStatus = existingOrder.Status,
+                NewStatus = request.Status,
+                AdminId = principal.FindFirstValue("adminId") ?? "",
+                AdminName = GetAdminActorName(principal),
+                AdminRole = GetAdminActorRole(principal)
+            });
+        var order = await database.Orders.FindOneAndUpdateAsync(
+            currentOrder => currentOrder.Id == id,
             update,
+            new FindOneAndUpdateOptions<OrderDocument> { ReturnDocument = ReturnDocument.After },
             cancellationToken: cancellationToken);
-        return result.MatchedCount == 0 ? Results.NotFound() : Results.NoContent();
+        return order is null ? Results.NotFound() : Results.Ok(order);
     }
 
     private static async Task<IResult> DeleteOrder(
@@ -582,14 +1125,114 @@ public static class ApiEndpoints
         return null;
     }
 
-    private static object ToUserResponse(UserDocument user) => new
+    private static object ToUserResponse(UserDocument user, bool includeAudit = false)
     {
-        user.Id,
-        user.Username,
-        user.Phone,
-        user.Status,
-        user.CreatedAt
+        var response = new Dictionary<string, object?>
+        {
+            ["id"] = user.Id,
+            ["username"] = user.Username,
+            ["phone"] = user.Phone,
+            ["email"] = user.Email,
+            ["status"] = user.Status,
+            ["createdAt"] = user.CreatedAt,
+            ["passwordChanges"] = user.PasswordChanges.Select(change => new
+            {
+                change.AdminName,
+                change.ChangedAt
+            })
+        };
+
+        if (includeAudit)
+        {
+            response["createdByAdminId"] = user.CreatedByAdminId;
+            response["createdByAdminName"] = user.CreatedByAdminName;
+            response["profileChanges"] = user.ProfileChanges.Select(change => new
+            {
+                change.ActorId,
+                change.ActorName,
+                change.ActorRole,
+                change.ChangedAt,
+                change.Changes
+            });
+        }
+
+        return response;
+    }
+
+    private static void AddProfileChange(
+        ICollection<string> changes,
+        string field,
+        string? previousValue,
+        string? newValue)
+    {
+        var previous = string.IsNullOrWhiteSpace(previousValue) ? "(trống)" : previousValue.Trim();
+        var next = string.IsNullOrWhiteSpace(newValue) ? "(trống)" : newValue.Trim();
+        if (!string.Equals(previous, next, StringComparison.Ordinal))
+        {
+            changes.Add($"{field}: {previous} -> {next}");
+        }
+    }
+
+    private static CustomerProfileChange CreateProfileChange(
+        ClaimsPrincipal principal,
+        List<string> changes) => new()
+    {
+        ActorId = principal.FindFirstValue("adminId") ?? principal.FindFirstValue("userId") ?? "",
+        ActorName = GetAdminActorName(principal),
+        ActorRole = GetAdminActorRole(principal),
+        ChangedAt = DateTime.UtcNow,
+        Changes = changes
     };
+
+    private static string GetAdminActorName(ClaimsPrincipal principal) =>
+        principal.FindFirstValue("adminName")
+        ?? principal.FindFirstValue(ClaimTypes.Name)
+        ?? principal.FindFirstValue("adminUsername")
+        ?? principal.FindFirstValue("userId")
+        ?? "Khách hàng";
+
+    private static string GetAdminActorRole(ClaimsPrincipal principal) =>
+        principal.FindFirstValue("adminLevel")
+        ?? principal.FindFirstValue(ClaimTypes.Role)
+        ?? "customer";
+
+    private static bool IsValidEmail(string? email) =>
+        string.IsNullOrWhiteSpace(email)
+        || (email.Length <= 254 && new EmailAddressAttribute().IsValid(email.Trim()));
+
+    private static string? NormalizeEmail(string? email) =>
+        string.IsNullOrWhiteSpace(email) ? null : email.Trim();
+
+    private static object ToAdminStaffResponse(AdminUserDocument admin) => new
+    {
+        admin.Id,
+        admin.Username,
+        admin.DisplayName,
+        admin.Status,
+        admin.CreatedAt
+    };
+
+    private static string CreateUserToken(UserDocument user, IConfiguration configuration)
+    {
+        var now = DateTime.UtcNow;
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+            new Claim("userId", user.Id),
+            new Claim(ClaimTypes.Role, "customer")
+        };
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!));
+        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var token = new JwtSecurityToken(
+            issuer: configuration["Jwt:Issuer"],
+            audience: configuration["Jwt:Audience"],
+            claims: claims,
+            notBefore: now,
+            expires: now.AddHours(12),
+            signingCredentials: credentials);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
 
     private static bool IsValidPhone(string? phone) =>
         phone is not null && phone.Length is 10 or 11 && phone.All(char.IsDigit);

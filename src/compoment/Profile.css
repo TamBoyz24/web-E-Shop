@@ -255,9 +255,31 @@
   color: #c2410c;
 }
 
+.badge.info {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.badge.danger {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 .badge.neutral {
   background: #eef2ff;
   color: #4338ca;
+}
+
+.orders-error {
+  padding: 14px 16px;
+  border: 1px solid #fecaca;
+  border-radius: 14px;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.orders-error p {
+  margin: 0 0 12px;
 }
 
 .empty-state {

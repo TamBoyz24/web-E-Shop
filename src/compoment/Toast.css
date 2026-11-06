@@ -1,51 +1,91 @@
 .app-toast {
     position: fixed;
     z-index: 2000;
-    top: 92px;
+    top: 24px;
     right: 24px;
     display: flex;
-    align-items: center;
-    gap: 10px;
-    width: min(370px, calc(100% - 32px));
-    padding: 13px 15px;
+    align-items: flex-start;
+    gap: 12px;
+    width: min(410px, calc(100% - 32px));
+    padding: 16px 17px;
+    overflow: hidden;
     border: 1px solid #bde8d0;
-    border-radius: 13px;
+    border-radius: 15px;
     color: #176b47;
-    background: rgba(244, 255, 249, .97);
-    box-shadow: 0 14px 35px rgba(23, 32, 51, .16);
+    background: rgba(255, 255, 255, .98);
+    box-shadow: 0 18px 48px rgba(23, 32, 51, .2);
+    backdrop-filter: blur(12px);
     animation: toast-in .25s ease-out;
     font-size: 13px;
-    font-weight: 700;
+}
+
+.app-toast::after {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: #35b67a;
+    content: "";
+    transform-origin: left;
+    animation: toast-progress 3.6s linear forwards;
 }
 
 .app-toast.error {
     border-color: #f2bebe;
     color: #a64040;
-    background: rgba(255, 247, 247, .97);
+}
+
+.app-toast.error::after {
+    background: #d85d5d;
 }
 
 .toast-symbol {
     display: grid;
     place-items: center;
-    flex: 0 0 23px;
-    height: 23px;
+    flex: 0 0 30px;
+    height: 30px;
     border-radius: 50%;
     color: #fff;
     background: #35b67a;
+    font-size: 15px;
+    font-weight: 800;
 }
 
 .app-toast.error .toast-symbol {
     background: #d85d5d;
 }
 
+.toast-content {
+    display: grid;
+    gap: 4px;
+    padding-top: 1px;
+    color: #53647d;
+    line-height: 1.45;
+}
+
+.toast-content strong {
+    color: #172033;
+    font-size: 13px;
+}
+
+.app-toast.error .toast-content strong {
+    color: #a64040;
+}
+
 .app-toast button {
     margin-left: auto;
     border: 0;
-    color: inherit;
+    padding: 0 2px;
+    color: #8995a7;
     background: transparent;
     cursor: pointer;
-    font-size: 20px;
+    font-size: 22px;
     line-height: 1;
+}
+
+.app-toast button:hover {
+    color: #172033;
 }
 
 @keyframes toast-in {
@@ -57,5 +97,26 @@
     to {
         transform: translateY(0);
         opacity: 1;
+    }
+}
+
+@keyframes toast-progress {
+    to {
+        transform: scaleX(0);
+    }
+}
+
+@media (max-width: 640px) {
+    .app-toast {
+        top: 12px;
+        right: 12px;
+        width: calc(100% - 24px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .app-toast,
+    .app-toast::after {
+        animation: none;
     }
 }

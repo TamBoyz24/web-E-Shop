@@ -17,12 +17,16 @@ public sealed class MongoStoreDatabase
         Products = Database.GetCollection<ProductDocument>("products");
         Users = Database.GetCollection<UserDocument>("users");
         Orders = Database.GetCollection<OrderDocument>("orders");
+        AdminUsers = Database.GetCollection<AdminUserDocument>("admin_users");
+        PasswordRecoveryRequests = Database.GetCollection<PasswordRecoveryRequestDocument>("password_recovery_requests");
     }
 
     public IMongoDatabase Database { get; }
     public IMongoCollection<ProductDocument> Products { get; }
     public IMongoCollection<UserDocument> Users { get; }
     public IMongoCollection<OrderDocument> Orders { get; }
+    public IMongoCollection<AdminUserDocument> AdminUsers { get; }
+    public IMongoCollection<PasswordRecoveryRequestDocument> PasswordRecoveryRequests { get; }
 
     public async Task EnsureIndexesAsync(CancellationToken cancellationToken = default)
     {
@@ -32,7 +36,23 @@ public sealed class MongoStoreDatabase
         var orderNumberIndex = new CreateIndexModel<OrderDocument>(
             Builders<OrderDocument>.IndexKeys.Ascending(order => order.OrderNumber),
             new CreateIndexOptions { Unique = true, Name = "unique_order_number" });
+        var userOrdersIndex = new CreateIndexModel<OrderDocument>(
+            Builders<OrderDocument>.IndexKeys
+                .Ascending(order => order.UserId)
+                .Descending(order => order.CreatedAt),
+            new CreateIndexOptions { Name = "user_orders_by_created_at" });
+        var adminUsernameIndex = new CreateIndexModel<AdminUserDocument>(
+            Builders<AdminUserDocument>.IndexKeys.Ascending(admin => admin.Username),
+            new CreateIndexOptions { Unique = true, Name = "unique_admin_username" });
+        var pendingRecoveryIndex = new CreateIndexModel<PasswordRecoveryRequestDocument>(
+            Builders<PasswordRecoveryRequestDocument>.IndexKeys
+                .Ascending(request => request.Phone)
+                .Ascending(request => request.Status),
+            new CreateIndexOptions { Name = "recovery_requests_by_phone_and_status" });
         await Users.Indexes.CreateOneAsync(phoneIndex, cancellationToken: cancellationToken);
         await Orders.Indexes.CreateOneAsync(orderNumberIndex, cancellationToken: cancellationToken);
+        await Orders.Indexes.CreateOneAsync(userOrdersIndex, cancellationToken: cancellationToken);
+        await AdminUsers.Indexes.CreateOneAsync(adminUsernameIndex, cancellationToken: cancellationToken);
+        await PasswordRecoveryRequests.Indexes.CreateOneAsync(pendingRecoveryIndex, cancellationToken: cancellationToken);
     }
 }

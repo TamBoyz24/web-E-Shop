@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { apiRequest } from "../lib/api";
+import { apiRequest, USER_TOKEN_KEY } from "../lib/api";
 import { readStorage } from "../lib/store";
 import "./LoginForm.css";
 
@@ -73,6 +73,10 @@ function LoginForm() {
         });
       }
 
+      if (!user.token) {
+        throw new Error("Máy chủ chưa cấp phiên đăng nhập. Vui lòng thử lại sau.");
+      }
+
       const legacyUsers = readStorage("users", []);
       if (Array.isArray(legacyUsers) && legacyUsers.some((item) => item.phone === phoneNumber)) {
         localStorage.setItem("users", JSON.stringify(legacyUsers.filter((item) => item.phone !== phoneNumber)));
@@ -83,6 +87,7 @@ function LoginForm() {
         "currentUser",
         JSON.stringify(user)
       );
+      localStorage.setItem(USER_TOKEN_KEY, user.token);
       localStorage.setItem("user", JSON.stringify(user));
 
       // Lưu trạng thái đăng nhập
@@ -96,7 +101,11 @@ function LoginForm() {
       const destination = location.state?.from || "/home";
       navigate(destination, { replace: true });
     } catch (requestError) {
-      setError(requestError.message);
+      setError(
+        requestError.status === 401
+          ? "Số điện thoại hoặc mật khẩu không đúng, hoặc tài khoản đã bị khóa. Nếu quên mật khẩu, hãy gửi yêu cầu hỗ trợ."
+          : requestError.message
+      );
     } finally {
       setLoading(false);
     }
@@ -188,7 +197,10 @@ function LoginForm() {
         {/* SỐ ĐIỆN THOẠI */}
         <input
           type="tel"
+          name="phone"
           placeholder="Số điện thoại"
+          autoComplete="tel"
+          inputMode="numeric"
           value={phoneNumber}
           onChange={handlePhoneChange}
           maxLength={11}
@@ -204,7 +216,9 @@ function LoginForm() {
                 ? "text"
                 : "password"
             }
+            name="password"
             placeholder="Nhập mật khẩu"
+            autoComplete="current-password"
             value={password}
             onChange={handlePasswordChange}
             required

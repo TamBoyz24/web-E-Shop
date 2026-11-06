@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
+import { USER_TOKEN_KEY } from "../lib/api";
 import "./Navbar.css";
 
 const Navbar = () => {
@@ -26,6 +27,7 @@ const Navbar = () => {
         localStorage.removeItem("user");
         localStorage.removeItem("currentUser");
         localStorage.removeItem("isLoggedIn");
+        localStorage.removeItem(USER_TOKEN_KEY);
         syncState();
         navigate("/login");
     };

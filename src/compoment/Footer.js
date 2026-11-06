@@ -67,17 +67,11 @@ alt="Zalo"
 <div className="footer-section qr-code">
 <h3>Tải ứng dụng</h3>
 <div className="download-app-container">
-<a href="#">
-<img
-src="https://seeklogo.com/images/A/apple-app-store-logo-358417D563-seeklogo.com.png"
-alt="Download on the App Store"
-/>
+<a href="https://www.apple.com/app-store/" target="_blank" rel="noopener noreferrer" aria-label="Download on the App Store">
+<span className="app-store-badge"><small>Download on the</small><strong>App Store</strong></span>
 </a>
-<a href="#">
-<img
-src="https://freelogopng.com/images/all_img/1664285914google-play-logo-png.png"
-alt="Get it on Google Play"
-/>
+<a href="https://play.google.com/store" target="_blank" rel="noopener noreferrer" aria-label="Get it on Google Play">
+<span className="app-store-badge"><small>GET IT ON</small><strong>Google Play</strong></span>
 </a>
 </div>
 </div>

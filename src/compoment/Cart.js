@@ -112,7 +112,7 @@ const Cart = () => {
       return;
     }
     try {
-      const order = await createOrder(selectedItems, customerInfo, getUser());
+      const order = await createOrder(selectedItems, customerInfo);
       const remainingItems = cartItems.filter((item) => !selectedKeys.includes(getItemKey(item)));
       saveCart(remainingItems);
       setCartItems(remainingItems);

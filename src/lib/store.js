@@ -43,14 +43,13 @@ export function getUser() {
     return readStorage(STORAGE_KEYS.user, readStorage(STORAGE_KEYS.currentUser, null));
 }
 
-export async function createOrder(items, customerInfo, user) {
+export async function createOrder(items, customerInfo) {
     const order = await apiRequest("/orders", {
         method: "POST",
         body: {
             customer: customerInfo.name,
             phone: customerInfo.phone,
             address: customerInfo.address,
-            userId: user?.id || null,
             items: items.map((item) => ({
                 id: String(item.id),
                 name: item.name,
@@ -61,6 +60,7 @@ export async function createOrder(items, customerInfo, user) {
                 color: item.color || null,
             })),
         },
+        user: true,
     });
     return { ...order, databaseId: order.id, id: order.orderNumber };
 }

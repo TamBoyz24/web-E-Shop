@@ -22,6 +22,7 @@ ConventionRegistry.Register(
 
 builder.Services.AddSingleton<MongoStoreDatabase>();
 builder.Services.AddSingleton<IPasswordHasher<UserDocument>, PasswordHasher<UserDocument>>();
+builder.Services.AddSingleton<IPasswordHasher<AdminUserDocument>, PasswordHasher<AdminUserDocument>>();
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
     policy.WithOrigins(
             builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()

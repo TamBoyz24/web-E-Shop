@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiRequest } from "../lib/api";
+import { apiRequest, USER_TOKEN_KEY } from "../lib/api";
 import { addCartItem, getCart } from "../lib/store";
 import Toast from "./Toast";
 import "./Home.css"; // Giả sử bạn đã có file CSS cho Home
@@ -136,6 +136,9 @@ const Home = () => {
 
   const handleLogout = () => {
     localStorage.removeItem("user");
+    localStorage.removeItem("currentUser");
+    localStorage.removeItem("isLoggedIn");
+    localStorage.removeItem(USER_TOKEN_KEY);
     setUser(null);
     setToast({ message: "Đã đăng xuất thành công", type: "success" });
   };

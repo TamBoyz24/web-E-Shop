@@ -28,7 +28,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and Push Image
+      - name: Build and Push Frontend Image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -37,45 +37,75 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/web-eshop:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/web-eshop:${{ github.sha }}
 
+      - name: Build and Push API Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/web-eshop:api-latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/web-eshop:api-${{ github.sha }}
+
   deploy:
     name: Deploy to AWS EC2
     needs: build-and-push
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy application
+      - name: Checkout deployment configuration
+        uses: actions/checkout@v4
+
+      - name: Prepare deployment directory
         uses: appleboy/ssh-action@v1.2.2
-        env:
-          IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/web-eshop:latest
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
-          envs: IMAGE
+          script: mkdir -p /opt/web-eshop
+
+      - name: Copy production Compose configuration
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          source: docker-compose.production.yml
+          target: /opt/web-eshop
+
+      - name: Deploy frontend, API, and MongoDB
+        uses: appleboy/ssh-action@v1.2.2
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          IMAGE_TAG: ${{ github.sha }}
+          MONGO_ROOT_USERNAME: ${{ secrets.MONGO_ROOT_USERNAME }}
+          MONGO_ROOT_PASSWORD: ${{ secrets.MONGO_ROOT_PASSWORD }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          JWT_KEY: ${{ secrets.JWT_KEY }}
+          ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          envs: DOCKERHUB_USERNAME,DOCKERHUB_TOKEN,IMAGE_TAG,MONGO_ROOT_USERNAME,MONGO_ROOT_PASSWORD,MONGODB_URI,JWT_KEY,ADMIN_USERNAME,ADMIN_PASSWORD
           script: |
-            set -e
-
-            echo "Downloading new Docker image..."
-            docker pull "$IMAGE"
-
-            echo "Removing old container..."
-            docker rm -f web-eshop || true
-
-            echo "Starting new container..."
-            docker run -d \
-              --name web-eshop \
-              -p 80:80 \
-              --restart unless-stopped \
-              "$IMAGE"
-
-            echo "Cleaning unused Docker images..."
-            docker image prune -f
-
-            echo "Checking container..."
-            docker ps --filter name=web-eshop
-
-            echo "Checking website..."
-            curl -fsS http://localhost/ > /dev/null
-
-            echo "Deployment completed successfully!"
+            set -eu
+            cd /opt/web-eshop
+            printf '%s' "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+            export DOCKERHUB_USERNAME IMAGE_TAG MONGO_ROOT_USERNAME MONGO_ROOT_PASSWORD MONGODB_URI JWT_KEY ADMIN_USERNAME ADMIN_PASSWORD
+            docker compose -f docker-compose.production.yml config --quiet
+            docker compose -f docker-compose.production.yml pull
+            docker rm -f web-eshop 2>/dev/null || true
+            if ! docker compose -f docker-compose.production.yml up -d --remove-orphans; then
+              docker compose -f docker-compose.production.yml logs --tail=100
+              exit 1
+            fi
+            docker compose -f docker-compose.production.yml ps
+            curl --retry 10 --retry-delay 3 --retry-connrefused -fsS http://localhost/ > /dev/null
+            curl --retry 10 --retry-delay 3 --retry-connrefused -fsS http://localhost/api/products > /dev/null
+            echo "Frontend and API deployment completed successfully."

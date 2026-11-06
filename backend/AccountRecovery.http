@@ -1,0 +1,69 @@
+@baseUrl = http://localhost:5000
+@customerPhone = 0901234567
+@ownerUsername = {{ownerUsername}}
+@ownerPassword = {{ownerPassword}}
+@ownerToken = {{ownerToken}}
+@staffUsername = support01
+@staffPassword = {{staffPassword}}
+@staffToken = {{staffToken}}
+@customerId = {{customerId}}
+@recoveryRequestId = {{recoveryRequestId}}
+
+### Submit an administrator-assisted recovery request; response is generic by design.
+POST {{baseUrl}}/api/auth/password-recovery-requests
+Content-Type: application/json
+
+{
+  "phone": "{{customerPhone}}"
+}
+
+### Sign in as the configured owner admin.
+POST {{baseUrl}}/api/auth/admin/login
+Content-Type: application/json
+
+{
+  "username": "{{ownerUsername}}",
+  "password": "{{ownerPassword}}"
+}
+
+### Create an individual staff account (owner only).
+POST {{baseUrl}}/api/admin/staff
+Authorization: Bearer {{ownerToken}}
+Content-Type: application/json
+
+{
+  "username": "{{staffUsername}}",
+  "displayName": "Nhân viên hỗ trợ",
+  "password": "{{staffPassword}}"
+}
+
+### Sign in as a staff account.
+POST {{baseUrl}}/api/auth/admin/login
+Content-Type: application/json
+
+{
+  "username": "{{staffUsername}}",
+  "password": "{{staffPassword}}"
+}
+
+### Review pending recovery requests.
+GET {{baseUrl}}/api/admin/password-recovery-requests
+Authorization: Bearer {{ownerToken}}
+
+### After verifying the customer by phone, set a new password.
+PATCH {{baseUrl}}/api/admin/users/{{customerId}}/password
+Authorization: Bearer {{staffToken}}
+Content-Type: application/json
+
+{
+  "password": "replace-with-a-secure-new-password"
+}
+
+### Dismiss a request that could not be verified.
+PATCH {{baseUrl}}/api/admin/password-recovery-requests/{{recoveryRequestId}}
+Authorization: Bearer {{ownerToken}}
+Content-Type: application/json
+
+{
+  "status": "dismissed"
+}

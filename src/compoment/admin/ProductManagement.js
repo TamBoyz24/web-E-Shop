@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { apiRequest } from "../../lib/api";
 import { readStorage } from "../../lib/store";
 import productsData from "./ProductAdmin";
-import "./admin-common.css";
+import AdminLayout from "./AdminLayout";
 import "./ProductManagement.css";
 
 const initialProducts = productsData.map(normalizeProduct);
@@ -147,24 +146,12 @@ function ProductManagement() {
     };
 
     return (
-        <main className="admin-layout inventory-page">
-            <aside className="admin-sidebar">
-                <Link className="admin-brand" to="/admin"><span>A</span> AiPhone Store</Link>
-                <p className="admin-caption">TRUNG TÂM QUẢN TRỊ</p>
-                <nav className="admin-nav">
-                    <Link to="/admin">Tổng quan</Link>
-                    <Link className="active" to="/admin/products">Kho sản phẩm</Link>
-                    <Link to="/admin/users">Người dùng</Link>
-                    <Link to="/admin/orders">Đơn hàng</Link>
-                </nav>
-                <Link className="back-store" to="/">← Về cửa hàng</Link>
-            </aside>
-
-            <section className="admin-workspace inventory-content">
-                <header className="inventory-header">
-                    <div><span className="admin-eyebrow">INVENTORY / PRODUCTS</span><h1>Kho sản phẩm</h1><p>Quản lý danh mục, giá bán và số lượng tồn kho.</p></div>
-                    <button className="inventory-primary" type="button" onClick={openCreateForm}>+ Đăng sản phẩm</button>
-                </header>
+        <AdminLayout
+            eyebrow="INVENTORY / PRODUCTS"
+            title="Kho sản phẩm"
+            description="Quản lý danh mục, giá bán và số lượng tồn kho."
+            action={<button className="inventory-primary" type="button" onClick={openCreateForm}>+ Đăng sản phẩm</button>}
+        >
                 {loadError && <p className="form-error" role="alert">{loadError}</p>}
 
                 <div className="inventory-stats">
@@ -196,8 +183,6 @@ function ProductManagement() {
                     </div>
                     <footer className="inventory-footer">Đang hiển thị <strong>{filteredProducts.length}</strong> trên {products.length} sản phẩm</footer>
                 </section>
-            </section>
-
             {isFormOpen && <div className="inventory-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && closeForm()}>
                 <form className="inventory-form" onSubmit={handleSave}>
                     <div className="form-heading"><div><span className="admin-eyebrow">PRODUCT EDITOR</span><h2>{editingProduct ? "Chỉnh sửa sản phẩm" : "Đăng sản phẩm mới"}</h2></div><button type="button" onClick={closeForm} aria-label="Đóng">×</button></div>
@@ -206,7 +191,7 @@ function ProductManagement() {
                     <div className="form-actions"><button className="form-cancel" type="button" onClick={closeForm}>Hủy</button><button className="inventory-primary" type="submit">Lưu sản phẩm</button></div>
                 </form>
             </div>}
-        </main>
+        </AdminLayout>
     );
 }
 
