@@ -1,0 +1,26 @@
+@baseUrl = http://localhost:5000
+@userToken = replace-with-customer-jwt
+@orderId = replace-with-order-object-id
+
+### Get configured checkout methods
+GET {{baseUrl}}/api/payments/options
+
+### Start a hosted checkout for the authenticated customer's order
+POST {{baseUrl}}/api/orders/{{orderId}}/payment
+Authorization: Bearer {{userToken}}
+
+### VNPay browser return (invalid signature example)
+GET {{baseUrl}}/api/payments/vnpay/return?vnp_TxnRef={{orderId}}&vnp_SecureHash=invalid
+
+### VNPay IPN (invalid signature example)
+GET {{baseUrl}}/api/payments/vnpay/ipn?vnp_TxnRef={{orderId}}&vnp_SecureHash=invalid
+
+### ZaloPay callback (invalid signature example)
+POST {{baseUrl}}/api/payments/zalopay/callback
+Content-Type: application/json
+
+{
+  "data": "{}",
+  "mac": "invalid",
+  "type": 1
+}

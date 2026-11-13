@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { apiRequest } from "../../lib/api";
 import { readStorage } from "../../lib/store";
+import { normalizeLegacyCatalog } from "../../lib/catalog";
 import productsData from "./ProductAdmin";
 import AdminLayout from "./AdminLayout";
 import "./ProductManagement.css";
@@ -28,7 +29,7 @@ function ProductManagement() {
                     const hasLegacyCatalog = localStorage.getItem("storeProducts") !== null;
                     const legacyProducts = readStorage("storeProducts", initialProducts);
                     const productsToSeed = hasLegacyCatalog && Array.isArray(legacyProducts)
-                        ? legacyProducts.map(normalizeProduct)
+                        ? normalizeLegacyCatalog(legacyProducts).map(normalizeProduct)
                         : initialProducts;
                     if (productsToSeed.length) {
                         try {

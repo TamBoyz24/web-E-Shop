@@ -3,6 +3,7 @@ import './RedmiPage.css';
 import { useNavigate } from "react-router-dom";
 import { apiRequest } from "../lib/api";
 import { getCart, saveCart } from "../lib/store";
+import { normalizeSampleProductPrice } from "../lib/catalog";
 import Toast from "../compoment/Toast";
 
 const redmiProducts = [
@@ -26,7 +27,7 @@ const redmiProducts = [
   { id: 38, name: 'xiaomi-redmi-note-11', price: 1699, images: 'xiaomi-redmi-note-11.webp', description: 'Mô tả chi tiết của xiaomi-redmi-note-11' },
   { id: 39, name: 'xiaomi-redmi-note-12_1', price: 499, images: 'xiaomi-redmi-note-12_1.webp', description: 'Mô tả chi tiết của xiaomi-redmi-note-12_1' },
   { id: 40, name: 'xiaomi-redmi-note-12-pro-5g', price: 1399, images: 'xiaomi-redmi-note-12-pro-5g.webp', description: 'Mô tả chi tiết của xiaomi-redmi-note-12-pro-5g' },
-];
+].map(normalizeSampleProductPrice);
 
 const RedmiPage = () => {
   const [products, setProducts] = useState(redmiProducts);

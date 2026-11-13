@@ -3,6 +3,7 @@ import './SamsungPage.css';
 import { useNavigate } from "react-router-dom";
 import { apiRequest } from "../lib/api";
 import { getCart, saveCart } from "../lib/store";
+import { normalizeSampleProductPrice } from "../lib/catalog";
 import Toast from "../compoment/Toast";
 const samsungProducts = [
   { id: 41, name: 'Samsung Galaxy A15 LTE 8GB 128GB', price: 1199, images: 'Samsung Galaxy A15 LTE 8GB 128GB.webp', description: 'Mô tả chi tiết của Samsung Galaxy A15 LTE 8GB 128GB' },
@@ -25,7 +26,7 @@ const samsungProducts = [
   { id: 58, name: 'Samsung-z-lip5_1__1', price: 1299, images: 'samsung-z-lip5_1__1.webp', description: 'Mô tả chi tiết của Samsung-z-lip5_1__1' },
   { id: 59, name: 'Samsung-galaxy', price: 2899, images: 'dien-thoai-samsung-galaxy-a06_1_.webp', description: 'Mô tả chi tiết của Samsung-galaxy' },
   { id: 60, name: 'Samsung-galaxy-a25-xanh-vang', price: 2999, images: 'galaxy-a25-xanh-vang.webp', description: 'Mô tả chi tiết của Samsung-galaxy-a25-xanh-vang' },
-];
+].map(normalizeSampleProductPrice);
 
 const SamsungPage = () => {
   const [products, setProducts] = useState(samsungProducts);

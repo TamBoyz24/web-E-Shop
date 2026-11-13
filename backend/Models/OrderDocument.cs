@@ -20,6 +20,10 @@ public sealed class OrderDocument
     [BsonRepresentation(BsonType.Decimal128)]
     public decimal Total { get; set; }
 
+    public string PaymentMethod { get; set; } = "cod";
+    public string PaymentStatus { get; set; } = "unpaid";
+    public string? PaymentTransactionId { get; set; }
+    public string? PaymentProviderTransactionId { get; set; }
     public string Status { get; set; } = "pending";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

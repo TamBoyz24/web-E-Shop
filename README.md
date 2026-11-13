@@ -28,6 +28,24 @@ The first visit to the admin product page seeds an empty database from the brows
 
 Customers can track their orders on the profile page after signing in. The API issues a customer token at login, associates new orders with the authenticated account, and `GET /api/orders/mine` returns only that customer's orders. The profile page shows the order number, products, date, total, and current status; use **Làm mới** to fetch status updates. Customer profile details are stored by the API: admin staff can edit the customer's name, phone, and email, and the customer profile fetches the latest saved details when opened or refreshed. Customers can update the same details from **Sửa thông tin**.
 
+## Payments
+
+Checkout supports cash on delivery, bank transfer, VNPay, and ZaloPay. Payment methods are returned by `GET /api/payments/options`; methods that do not have the required configuration remain unavailable. New orders require a signed-in customer. Never put merchant secrets in React settings or commit them to source control.
+
+Configure these environment variables for the API:
+
+| Variable | Purpose |
+| --- | --- |
+| `PAYMENTS_PUBLIC_API_BASE_URL` | Public HTTPS API origin used for provider callbacks, for example `https://shop.example.com`. |
+| `PAYMENTS_FRONTEND_RETURN_URL` | Frontend result page, for example `https://shop.example.com/payment-result`. |
+| `BANK_TRANSFER_BANK_NAME`, `BANK_TRANSFER_ACCOUNT_NAME`, `BANK_TRANSFER_ACCOUNT_NUMBER` | Public bank transfer instructions. `BANK_TRANSFER_BRANCH` is optional. |
+| `VNPAY_PAYMENT_URL`, `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET` | VNPay merchant settings. Use the official sandbox payment URL while testing: `https://sandbox.vnpayment.vn/paymentv2/vpcpay.html`. |
+| `ZALOPAY_CREATE_ORDER_URL`, `ZALOPAY_APP_ID`, `ZALOPAY_KEY1`, `ZALOPAY_KEY2` | ZaloPay merchant settings. Set the create-order URL supplied for your sandbox or production merchant account. |
+
+Set these variables in the local shell before `docker compose up`, or as GitHub Actions secrets for production deployment. Register `PAYMENTS_PUBLIC_API_BASE_URL/api/payments/vnpay/ipn` as the VNPay IPN URL and `PAYMENTS_PUBLIC_API_BASE_URL/api/payments/zalopay/callback` as the ZaloPay callback URL. The callback host must be publicly reachable by the providers. VNPay and ZaloPay signatures are verified before payment status changes; COD orders are marked paid when staff marks them completed, and bank transfers require staff confirmation. The current MoMo contract could not be verified against accessible current official documentation, so MoMo is intentionally not offered.
+
+Integration references: [VNPay payment API](https://sandbox.vnpayment.vn/apis/docs/thanh-toan-pay/pay.html), [ZaloPay Create Order](https://docs.zalopay.vn/docs/specs/order-create/), and [ZaloPay secure data transmission](https://docs.zalopay.vn/docs/developer-tools/security/secure-data-transmission/).
+
 Customers who forget their password can submit a request from **Quên mật khẩu?** on the login page. Requests appear in Admin → Người dùng. Email is optional and validated before it is saved. Because SMS verification is not configured, staff must verify the customer by phone before setting a new password. The audit log records the staff member and timestamp, never the password. Admins can create individual staff logins in Admin → Nhân viên admin; the configured `Admin:Username`/`Admin:Password` account is the owner account and is required to create or disable staff accounts.
 
 ## Production deployment

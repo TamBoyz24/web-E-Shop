@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import { USER_TOKEN_KEY } from "../lib/api";
 import "./Navbar.css";
 
 const Navbar = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [user, setUser] = useState(() => getStoredUser());
     const [cartCount, setCartCount] = useState(() => getCartCount());
     const [menuOpen, setMenuOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState(() => searchParams.get("q") || "");
 
     function syncState() {
         setUser(getStoredUser());
@@ -17,11 +19,25 @@ const Navbar = () => {
     useEffect(() => {
         window.addEventListener("storage", syncState);
         window.addEventListener("cart-updated", syncState);
+        window.addEventListener("user-session-expired", syncState);
         return () => {
             window.removeEventListener("storage", syncState);
             window.removeEventListener("cart-updated", syncState);
+            window.removeEventListener("user-session-expired", syncState);
         };
     }, []);
+
+    useEffect(() => {
+        setSearchTerm(searchParams.get("q") || "");
+    }, [searchParams]);
+
+    const handleSearch = (event) => {
+        event.preventDefault();
+        const query = new URLSearchParams();
+        if (searchTerm.trim()) query.set("q", searchTerm.trim());
+        navigate(`/${query.toString() ? `?${query.toString()}` : ""}#products`);
+        setMenuOpen(false);
+    };
 
     const handleLogout = () => {
         localStorage.removeItem("user");
@@ -39,6 +55,17 @@ const Navbar = () => {
                     <span className="brand-mark">A</span>
                     <span>AiPhone <em>Store</em></span>
                 </Link>
+
+                <form className="nav-search" role="search" onSubmit={handleSearch}>
+                    <input
+                        type="search"
+                        aria-label="Tìm kiếm sản phẩm"
+                        placeholder="Bạn cần tìm gì?"
+                        value={searchTerm}
+                        onChange={(event) => setSearchTerm(event.target.value)}
+                    />
+                    <button type="submit" aria-label="Tìm kiếm">⌕</button>
+                </form>
 
                 <button className="menu-toggle" type="button" onClick={() => setMenuOpen(!menuOpen)} aria-label="Mở menu">
                     <span /> <span /> <span />

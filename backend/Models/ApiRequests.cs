@@ -41,8 +41,10 @@ public sealed record CreateOrderRequest(
     string Customer,
     string Phone,
     string Address,
-    List<OrderItemInput> Items);
+    List<OrderItemInput> Items,
+    string PaymentMethod = "cod");
 public sealed record OrderStatusRequest(string Status);
+public sealed record OrderPaymentStatusRequest(string Status);
 public sealed record LegacyOrderItemInput(
     string? Id,
     string? Name,

@@ -8,6 +8,7 @@ import Footer from './compoment/Footer';
 import Home from './compoment/Home';
 import Navbar from './compoment/Navbar';
 import OrderManagement from './compoment/admin/OrderManagement';
+import PaymentResult from './compoment/PaymentResult';
 import ProductDetail from './compoment/ProductDetail';
 import ProductManagement from './compoment/admin/ProductManagement';
 import Profile from './compoment/Profile';
@@ -27,7 +28,7 @@ import AdminRoute from './compoment/admin/AdminRoute';
 
 const AppLayout = () => {
   const location = useLocation();
-  const isUtilityPage = ['/authform', '/login', '/forgot-password', '/admin/login', '/admin', '/admin/products', '/admin/users', '/admin/orders', '/admin/staff'].includes(location.pathname)
+  const isUtilityPage = ['/authform', '/login', '/forgot-password', '/payment-result', '/admin/login', '/admin', '/admin/products', '/admin/users', '/admin/orders', '/admin/staff'].includes(location.pathname)
     || location.pathname.startsWith('/admin/users/');
 
   return (
@@ -40,6 +41,7 @@ const AppLayout = () => {
           <Route path="/promotion" element={<Promotion />} />
           <Route path="/product-detail/:id" element={<ProductDetail />} />
           <Route path="/cart" element={<Cart />} />
+          <Route path="/payment-result" element={<PaymentResult />} />
           <Route path="/user-info" element={<UserInfo />} />
           <Route path="/authform" element={<AuthForm />} />
           <Route path="/profile" element={<Profile />} />

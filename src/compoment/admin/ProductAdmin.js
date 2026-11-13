@@ -1,3 +1,5 @@
+import { normalizeSampleProductPrice } from "../../lib/catalog";
+
 const ProductAdmin = [
 { id: 1, name: 'iPhone 11 64GB', price: 599, images: 'iPhone 11 64GB.webp', description: 'Mô tả chi tiết của iPhone 11 64GB' },
 { id: 2, name: 'iPhone 12 Pro Max 128GB', price: 1999, images: 'iPhone 12 Pro Max 128GB.webp', description: 'Mô tả chi tiết của iPhone 12 Pro Max 128GB' },
@@ -59,5 +61,5 @@ const ProductAdmin = [
 { id: 58, name: 'Samsung-z-lip5_1__1', price: 1299, images: 'samsung-z-lip5_1__1.webp', description: 'Mô tả chi tiết của Samsung-z-lip5_1__1' },
 { id: 59, name: 'Samsung-galaxy', price: 2899, images: 'dien-thoai-samsung-galaxy-a06_1_.webp', description: 'Mô tả chi tiết của Samsung-galaxy' },
 { id: 60, name: 'Samsung-galaxy-a25-xanh-vang', price: 2999, images: 'galaxy-a25-xanh-vang.webp', description: 'Mô tả chi tiết của Samsung-galaxy-a25-xanh-vang' },
-];
+].map(normalizeSampleProductPrice);
 export default ProductAdmin;

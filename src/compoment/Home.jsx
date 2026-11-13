@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { apiRequest, USER_TOKEN_KEY } from "../lib/api";
 import { addCartItem, getCart } from "../lib/store";
+import { normalizeLegacyCatalog, normalizeSampleProductPrice } from "../lib/catalog";
 import Toast from "./Toast";
 import "./Home.css"; // Giả sử bạn đã có file CSS cho Home
 
 const Home = () => {
+  const [searchParams] = useSearchParams();
   const samsungProducts = [
     { id: 1, name: 'iPhone 11 64GB', price: 599, images: 'iPhone 11 64GB.webp', description: 'Mô tả chi tiết của iPhone 11 64GB' },
     { id: 2, name: 'iPhone 12 Pro Max 128GB', price: 1999, images: 'iPhone 12 Pro Max 128GB.webp', description: 'Mô tả chi tiết của iPhone 12 Pro Max 128GB' },
@@ -67,15 +69,24 @@ const Home = () => {
     { id: 58, name: 'Samsung-z-lip5_1__1', price: 1299, images: 'samsung-z-lip5_1__1.webp', description: 'Mô tả chi tiết của Samsung-z-lip5_1__1' },
     { id: 59, name: 'Samsung-galaxy', price: 2899, images: 'dien-thoai-samsung-galaxy-a06_1_.webp', description: 'Mô tả chi tiết của Samsung-galaxy' },
     { id: 60, name: 'Samsung-galaxy-a25-xanh-vang', price: 2999, images: 'galaxy-a25-xanh-vang.webp', description: 'Mô tả chi tiết của Samsung-galaxy-a25-xanh-vang' },
-  ];
+  ].map(normalizeSampleProductPrice);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [priceRange, setPriceRange] = useState("all");
+  const [category, setCategory] = useState("all");
+  const [sortOrder, setSortOrder] = useState("popular");
+  const [currentPage, setCurrentPage] = useState(1);
   const [products, setProducts] = useState(() => loadStoreProducts(samsungProducts));
   const [cart, setCart] = useState(getCart);
   const [user, setUser] = useState(null);
   const [toast, setToast] = useState(null);
   const navigate = useNavigate();
+  const productsPerPage = 12;
+
+  useEffect(() => {
+    setSearchQuery(searchParams.get("q") || "");
+    setCurrentPage(1);
+  }, [searchParams]);
 
   useEffect(() => {
     const savedUser = JSON.parse(localStorage.getItem("user"));
@@ -109,21 +120,37 @@ const Home = () => {
 
   const handleSearchChange = (event) => {
     setSearchQuery(event.target.value);
+    setCurrentPage(1);
   };
 
   const handlePriceRangeChange = (event) => {
     setPriceRange(event.target.value);
+    setCurrentPage(1);
   };
 
   const filteredProducts = products.filter((product) => {
     const matchesSearchQuery = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const productName = product.name.toLowerCase();
+    const matchesCategory =
+      category === "all" ||
+      (category === "iphone" && productName.includes("iphone")) ||
+      (category === "samsung" && productName.includes("samsung")) ||
+      (category === "xiaomi" && (productName.includes("xiaomi") || productName.includes("redmi") || productName.includes("poco")));
     const matchesPriceRange =
       priceRange === "all" ||
-      (priceRange === "under1000" && product.price < 1000) ||
-      (priceRange === "1000to2000" && product.price >= 1000 && product.price <= 2000) ||
-      (priceRange === "over2000" && product.price > 2000);
-    return matchesSearchQuery && matchesPriceRange;
+      (priceRange === "under1000" && product.price < 1000000) ||
+      (priceRange === "1000to2000" && product.price >= 1000000 && product.price <= 2000000) ||
+      (priceRange === "over2000" && product.price > 2000000);
+    return matchesSearchQuery && matchesCategory && matchesPriceRange;
   });
+
+  const sortedProducts = [...filteredProducts].sort((first, second) => {
+    if (sortOrder === "price-asc") return Number(first.price) - Number(second.price);
+    if (sortOrder === "price-desc") return Number(second.price) - Number(first.price);
+    return 0;
+  });
+  const pageCount = Math.ceil(sortedProducts.length / productsPerPage);
+  const visibleProducts = sortedProducts.slice((currentPage - 1) * productsPerPage, currentPage * productsPerPage);
 
   const handleViewDetails = (product) => {
     navigate(`/product-detail/${product.id}`);
@@ -207,7 +234,26 @@ const Home = () => {
           </button>
         </div>
 
-        <div className="search-container">
+        <div className="catalog-controls">
+          <div className="category-filters" aria-label="Lọc theo thương hiệu">
+            {[
+              ["all", "Tất cả"],
+              ["iphone", "iPhone"],
+              ["samsung", "Samsung"],
+              ["xiaomi", "Xiaomi"],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                className={`category-filter${category === value ? " is-active" : ""}`}
+                onClick={() => { setCategory(value); setCurrentPage(1); }}
+                aria-pressed={category === value}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="search-container">
           <span className="search-icon">⌕</span>
           <input
             type="text"
@@ -217,16 +263,27 @@ const Home = () => {
             onChange={handleSearchChange}
           />
           <select value={priceRange} onChange={handlePriceRangeChange} className="price-filter">
-            <option value="all">Tất cả giá</option>
-            <option value="under1000">Dưới 1000 VND</option>
-            <option value="1000to2000">1000 - 2000 VND</option>
-            <option value="over2000">Trên 2000 VND</option>
+            <option value="all">Mọi mức giá</option>
+            <option value="under1000">Dưới 1 triệu</option>
+            <option value="1000to2000">1 - 2 triệu</option>
+            <option value="over2000">Trên 2 triệu</option>
           </select>
+          <select
+            value={sortOrder}
+            onChange={(event) => { setSortOrder(event.target.value); setCurrentPage(1); }}
+            className="price-filter"
+            aria-label="Sắp xếp sản phẩm"
+          >
+            <option value="popular">Nổi bật</option>
+            <option value="price-asc">Giá thấp đến cao</option>
+            <option value="price-desc">Giá cao đến thấp</option>
+          </select>
+          </div>
         </div>
 
         <div className="product-list">
-          {filteredProducts.length > 0 ? (
-            filteredProducts.map((product) => (
+          {visibleProducts.length > 0 ? (
+            visibleProducts.map((product) => (
               <article key={product.id} className="product-item">
                 <span className="product-tag">Chính hãng</span>
                 <img
@@ -250,6 +307,17 @@ const Home = () => {
             <p>Không tìm thấy sản phẩm nào!</p>
           )}
         </div>
+        {pageCount > 1 && (
+          <nav className="catalog-pagination" aria-label="Phân trang sản phẩm">
+            <button type="button" onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1}>
+              Trước
+            </button>
+            <span>Trang {currentPage} / {pageCount}</span>
+            <button type="button" onClick={() => setCurrentPage((page) => Math.min(pageCount, page + 1))} disabled={currentPage === pageCount}>
+              Tiếp
+            </button>
+          </nav>
+        )}
       </section>
 
       {/* User Information */}
@@ -269,7 +337,7 @@ function loadStoreProducts(fallbackProducts) {
   try {
     const savedProducts = JSON.parse(localStorage.getItem("storeProducts"));
     if (Array.isArray(savedProducts)) {
-      return savedProducts.filter((product) => product.status !== "hidden" && product.stock !== 0);
+      return normalizeLegacyCatalog(savedProducts).filter((product) => product.status !== "hidden" && product.stock !== 0);
     }
   } catch {
     return fallbackProducts;

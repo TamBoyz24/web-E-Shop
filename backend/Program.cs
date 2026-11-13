@@ -2,6 +2,7 @@ using System.Text;
 using backend.Api;
 using backend.Data;
 using backend.Models;
+using backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
@@ -21,6 +22,8 @@ ConventionRegistry.Register(
     _ => true);
 
 builder.Services.AddSingleton<MongoStoreDatabase>();
+builder.Services.AddHttpClient<IPaymentService, PaymentService>(client =>
+    client.Timeout = TimeSpan.FromSeconds(15));
 builder.Services.AddSingleton<IPasswordHasher<UserDocument>, PasswordHasher<UserDocument>>();
 builder.Services.AddSingleton<IPasswordHasher<AdminUserDocument>, PasswordHasher<AdminUserDocument>>();
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
