@@ -238,11 +238,41 @@
     display: none;
 }
 
+.catalog-controls {
+    margin-bottom: 22px;
+}
+
+.category-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.category-filter {
+    min-height: 36px;
+    padding: 0 15px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--muted);
+    background: var(--surface);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    transition: .2s ease;
+}
+
+.category-filter:hover,
+.category-filter.is-active {
+    border-color: var(--brand);
+    color: #fff;
+    background: var(--brand);
+}
+
 .search-container {
     position: relative;
     display: flex;
     gap: 10px;
-    margin-bottom: 25px;
 }
 
 .search-icon {
@@ -270,7 +300,7 @@
 }
 
 .price-filter {
-    min-width: 190px;
+    min-width: 165px;
     padding: 0 13px;
 }
 
@@ -375,6 +405,37 @@
 .product-actions {
     display: flex;
     gap: 8px;
+}
+
+.catalog-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    margin-top: 30px;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.catalog-pagination button {
+    min-height: 38px;
+    padding: 0 15px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    color: var(--ink);
+    background: var(--surface);
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.catalog-pagination button:hover:not(:disabled) {
+    border-color: var(--brand);
+    color: var(--brand);
+}
+
+.catalog-pagination button:disabled {
+    color: #aab3c0;
+    cursor: not-allowed;
 }
 
 .add-button,

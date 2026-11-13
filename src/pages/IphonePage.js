@@ -3,6 +3,7 @@ import './IphonePage.css';
 import { useNavigate } from "react-router-dom";
 import { apiRequest } from "../lib/api";
 import { getCart, saveCart } from "../lib/store";
+import { normalizeSampleProductPrice } from "../lib/catalog";
 import Toast from "../compoment/Toast";
 
 const iphoneProducts = [
@@ -26,7 +27,7 @@ const iphoneProducts = [
   { id: 18, name: 'iphone-14-pro-max-256gb', price: 2099, images: 'iphone-14-pro-max-256gb.webp', description: 'Mô tả chi tiết của iphone-14-pro-max-256gb' },
   { id: 19, name: 'iphone-15-pro-max_5', price: 2899, images: 'iphone-15-pro-max_5.webp', description: 'Mô tả chi tiết của iphone-15-pro-max_5' },
   { id: 20, name: 'iphone-16-plus-1', price: 2999, images: 'iphone-16-plus-1.webp', description: 'Mô tả chi tiết của iphone-16-plus-1' },
-];
+].map(normalizeSampleProductPrice);
 
 const IphonePage = () => {
   const [products, setProducts] = useState(iphoneProducts);

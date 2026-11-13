@@ -30,6 +30,19 @@ services:
       Admin__Username: admin
       Admin__Password: admin123
       Cors__AllowedOrigins__0: http://localhost:3000
+      Payments__PublicApiBaseUrl: ${PAYMENTS_PUBLIC_API_BASE_URL:-}
+      Payments__FrontendReturnUrl: ${PAYMENTS_FRONTEND_RETURN_URL:-}
+      Payments__BankTransfer__BankName: ${BANK_TRANSFER_BANK_NAME:-}
+      Payments__BankTransfer__AccountName: ${BANK_TRANSFER_ACCOUNT_NAME:-}
+      Payments__BankTransfer__AccountNumber: ${BANK_TRANSFER_ACCOUNT_NUMBER:-}
+      Payments__BankTransfer__Branch: ${BANK_TRANSFER_BRANCH:-}
+      Payments__VnPay__PaymentUrl: ${VNPAY_PAYMENT_URL:-}
+      Payments__VnPay__TmnCode: ${VNPAY_TMN_CODE:-}
+      Payments__VnPay__HashSecret: ${VNPAY_HASH_SECRET:-}
+      Payments__ZaloPay__CreateOrderUrl: ${ZALOPAY_CREATE_ORDER_URL:-}
+      Payments__ZaloPay__AppId: ${ZALOPAY_APP_ID:-}
+      Payments__ZaloPay__Key1: ${ZALOPAY_KEY1:-}
+      Payments__ZaloPay__Key2: ${ZALOPAY_KEY2:-}
     ports:
       - "127.0.0.1:5000:5000"
 

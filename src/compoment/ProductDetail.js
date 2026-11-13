@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiRequest } from "../lib/api";
 import { addCartItem, getCart, getUser } from "../lib/store";
+import { normalizeLegacyCatalog, normalizeSampleProductPrice } from "../lib/catalog";
 import Toast from "./Toast";
 import './ProductDetail.css'; // Import file CSS
 
@@ -79,7 +80,7 @@ const ProductDetail = () => {
       { id: 58, name: 'Samsung-z-lip5_1__1', price: 1299, images: 'samsung-z-lip5_1__1.webp', description: 'Mô tả chi tiết của Samsung-z-lip5_1__1', colors: ["Black", "White", "Blue"] },
       { id: 59, name: 'Samsung-galaxy', price: 2899, images: 'dien-thoai-samsung-galaxy-a06_1_.webp', description: 'Mô tả chi tiết của Samsung-galaxy', colors: ["Black", "White", "Blue"] },
       { id: 60, name: 'Samsung-galaxy-a25-xanh-vang', price: 2999, images: 'galaxy-a25-xanh-vang.webp', description: 'Mô tả chi tiết của Samsung-galaxy-a25-xanh-vang', colors: ["Black", "White", "Blue"] },
-    ];
+    ].map(normalizeSampleProductPrice);
 
     const showProduct = (selectedProduct) => {
       if (isMounted) {
@@ -99,7 +100,7 @@ const ProductDetail = () => {
       let catalog = products;
       try {
         const savedProducts = JSON.parse(localStorage.getItem("storeProducts"));
-        if (Array.isArray(savedProducts)) catalog = savedProducts;
+        if (Array.isArray(savedProducts)) catalog = normalizeLegacyCatalog(savedProducts);
       } catch {
         catalog = products;
       }

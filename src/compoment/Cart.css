@@ -169,3 +169,53 @@
     white-space: nowrap;
   }
 }
+
+.payment-method-description {
+  display: block;
+  margin-left: 24px;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.bank-transfer-instructions,
+.payment-retry {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.bank-transfer-content {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.payment-result-page {
+  display: grid;
+  min-height: 55vh;
+  place-items: center;
+  padding: 32px 16px;
+}
+
+.payment-result-card {
+  width: min(100%, 620px);
+  padding: 32px;
+  border: 1px solid #e4e9f1;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.08);
+}
+
+.payment-result-card h1 {
+  margin: 12px 0;
+  color: #172033;
+  font-size: 1.7rem;
+}
+
+.payment-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}

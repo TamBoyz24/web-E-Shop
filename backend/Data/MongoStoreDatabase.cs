@@ -54,5 +54,23 @@ public sealed class MongoStoreDatabase
         await Orders.Indexes.CreateOneAsync(userOrdersIndex, cancellationToken: cancellationToken);
         await AdminUsers.Indexes.CreateOneAsync(adminUsernameIndex, cancellationToken: cancellationToken);
         await PasswordRecoveryRequests.Indexes.CreateOneAsync(pendingRecoveryIndex, cancellationToken: cancellationToken);
+
+        var legacySamplePriceFilter = Builders<ProductDocument>.Filter.Regex(
+                product => product.Sku,
+                new MongoDB.Bson.BsonRegularExpression("^SP-"))
+            & Builders<ProductDocument>.Filter.Gt(product => product.Price, 0)
+            & Builders<ProductDocument>.Filter.Lt(product => product.Price, 10000);
+        var legacyProducts = await Products.Find(legacySamplePriceFilter)
+            .ToListAsync(cancellationToken);
+
+        foreach (var product in legacyProducts)
+        {
+            var unchangedLegacyPrice = Builders<ProductDocument>.Filter.Eq(candidate => candidate.Id, product.Id)
+                & Builders<ProductDocument>.Filter.Eq(candidate => candidate.Price, product.Price);
+            await Products.UpdateOneAsync(
+                unchangedLegacyPrice,
+                Builders<ProductDocument>.Update.Set(candidate => candidate.Price, product.Price * 1000),
+                cancellationToken: cancellationToken);
+        }
     }
 }

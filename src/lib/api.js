@@ -41,15 +41,22 @@ export async function apiRequest(path, options = {}) {
         headers,
     });
     const contentType = response.headers.get("content-type") || "";
-    const payload = contentType.includes("application/json") ? await response.json() : null;
+    const payload = contentType.includes("json") ? await response.json() : null;
 
     if (!response.ok) {
         if (admin && response.status === 401) {
             expireAdminSession();
         }
+        if (user && response.status === 401) {
+            localStorage.removeItem(USER_TOKEN_KEY);
+            localStorage.removeItem("user");
+            localStorage.removeItem("currentUser");
+            localStorage.removeItem("isLoggedIn");
+            window.dispatchEvent(new Event("user-session-expired"));
+        }
         const message = admin && response.status === 401
             ? "Phiên quản trị đã hết hạn. Vui lòng đăng nhập lại."
-            : payload?.message || `Yêu cầu thất bại (${response.status}).`;
+            : payload?.message || payload?.detail || payload?.title || `Yêu cầu thất bại (${response.status}).`;
         const error = new Error(message);
         error.status = response.status;
         throw error;

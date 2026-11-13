@@ -1,18 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import './Cart.css'; // Đảm bảo bạn có tệp CSS hoặc đổi đường dẫn phù hợp
 import { Modal, Button, Form } from 'react-bootstrap'; // Import các component cần thiết từ react-bootstrap
-import { addCartItem, createOrder, getCart, getUser, saveCart } from '../lib/store';
+import { addCartItem, createOrder, getCart, getPaymentOptions, getUser, saveCart, startOrderPayment } from '../lib/store';
+import { USER_TOKEN_KEY } from '../lib/api';
+import { normalizeLegacyCatalog } from '../lib/catalog';
 import { Link, useNavigate } from 'react-router-dom';
 import Toast from './Toast';
 
 const Cart = () => {
   const navigate = useNavigate();
-  const [cartItems, setCartItems] = useState(getCart);
+  const [cartItems, setCartItems] = useState(() => normalizeLegacyCatalog(getCart()));
   const [totalQuantity, setTotalQuantity] = useState(0);
   const [totalPrice, setTotalPrice] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [customerInfo, setCustomerInfo] = useState({ name: '', address: '', phone: '' });
   const [orderCreated, setOrderCreated] = useState(null);
+  const [paymentOptions, setPaymentOptions] = useState(null);
+  const [paymentOptionsError, setPaymentOptionsError] = useState('');
+  const [paymentOptionsLoading, setPaymentOptionsLoading] = useState(true);
+  const [paymentMethod, setPaymentMethod] = useState('cod');
+  const [submittingOrder, setSubmittingOrder] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState(() => getCart().map(getItemKey));
   const [toast, setToast] = useState(null);
 
@@ -27,10 +34,40 @@ const Cart = () => {
   }, [cartItems, selectedKeys]);
 
   useEffect(() => {
+    const storedCart = getCart();
+    const normalizedCart = normalizeLegacyCatalog(storedCart);
+    if (JSON.stringify(storedCart) !== JSON.stringify(normalizedCart)) {
+      saveCart(normalizedCart);
+      setCartItems(normalizedCart);
+    }
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    getPaymentOptions()
+      .then((options) => {
+        if (!isMounted) return;
+        setPaymentOptions(options);
+        const defaultMethod = options.methods?.find((method) => method.code === 'cod' && method.enabled)
+          || options.methods?.find((method) => method.enabled);
+        if (defaultMethod) setPaymentMethod(defaultMethod.code);
+        setPaymentOptionsError('');
+      })
+      .catch((requestError) => {
+        if (isMounted) setPaymentOptionsError(requestError.message);
+      })
+      .finally(() => {
+        if (isMounted) setPaymentOptionsLoading(false);
+      });
+    return () => { isMounted = false; };
+  }, []);
+
+  useEffect(() => {
     const refreshCart = () => {
       const nextCart = getCart();
-      setCartItems(nextCart);
-      setSelectedKeys((current) => current.filter((key) => nextCart.some((item) => getItemKey(item) === key)));
+      const normalizedCart = normalizeLegacyCatalog(nextCart);
+      setCartItems(normalizedCart);
+      setSelectedKeys((current) => current.filter((key) => normalizedCart.some((item) => getItemKey(item) === key)));
     };
     window.addEventListener('cart-updated', refreshCart);
     window.addEventListener('storage', refreshCart);
@@ -90,7 +127,7 @@ const Cart = () => {
       setToast({ message: 'Hãy chọn ít nhất một sản phẩm để mua', type: 'error' });
       return;
     }
-    if (!getUser()) {
+    if (!getUser() || !localStorage.getItem(USER_TOKEN_KEY)) {
       navigate('/login', { state: { from: '/cart' } });
       return;
     }
@@ -102,7 +139,7 @@ const Cart = () => {
   };
 
   const handleModalSave = async () => {
-    if (!getUser()) {
+    if (!getUser() || !localStorage.getItem(USER_TOKEN_KEY)) {
       setShowModal(false);
       navigate('/login', { state: { from: '/cart' } });
       return;
@@ -111,17 +148,52 @@ const Cart = () => {
       setToast({ message: 'Vui lòng nhập họ tên, địa chỉ và số điện thoại hợp lệ', type: 'error' });
       return;
     }
+    setSubmittingOrder(true);
     try {
-      const order = await createOrder(selectedItems, customerInfo);
+      const order = await createOrder(selectedItems, customerInfo, paymentMethod);
       const remainingItems = cartItems.filter((item) => !selectedKeys.includes(getItemKey(item)));
       saveCart(remainingItems);
       setCartItems(remainingItems);
-      setOrderCreated(order);
-      setToast({ message: `Đã tiếp nhận đơn ${order.id}`, type: 'success' });
       setShowModal(false);
       setSelectedKeys([]);
       setCustomerInfo({ name: '', address: '', phone: '' });
+      setOrderCreated({ ...order, paymentError: '' });
+
+      if (paymentMethod === 'vnpay' || paymentMethod === 'zalopay') {
+        try {
+          const checkout = await startOrderPayment(order.databaseId);
+          window.location.assign(checkout.url);
+          return;
+        } catch (paymentError) {
+          setOrderCreated((current) => current ? { ...current, paymentError: paymentError.message } : current);
+          setToast({ message: `Đơn ${order.id} đã tạo nhưng chưa khởi tạo được thanh toán. Bạn có thể thử lại bên dưới.`, type: 'error' });
+          return;
+        }
+      }
+
+      setToast({ message: `Đã tiếp nhận đơn ${order.id}`, type: 'success' });
     } catch (requestError) {
+      if (requestError.status === 401) {
+        localStorage.removeItem(USER_TOKEN_KEY);
+        localStorage.removeItem('user');
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('isLoggedIn');
+        navigate('/login', { state: { from: '/cart' } });
+        return;
+      }
+      setToast({ message: requestError.message, type: 'error' });
+    } finally {
+      setSubmittingOrder(false);
+    }
+  };
+
+  const retryPayment = async () => {
+    if (!orderCreated?.databaseId) return;
+    try {
+      const checkout = await startOrderPayment(orderCreated.databaseId);
+      window.location.assign(checkout.url);
+    } catch (requestError) {
+      setOrderCreated((current) => current ? { ...current, paymentError: requestError.message } : current);
       setToast({ message: requestError.message, type: 'error' });
     }
   };
@@ -202,12 +274,27 @@ const Cart = () => {
       </table>
       <div className="d-flex justify-content-between">
         <p><strong>Tổng giá trị: {isNaN(totalPrice) ? '0' : totalPrice.toLocaleString('vi-VN')} đ</strong></p>
-        <button className="btn btn-success" onClick={handlePurchase}>
+        <button className="btn btn-success" onClick={handlePurchase} disabled={paymentOptionsLoading || !paymentOptions}>
           Mua hàng
         </button>
       </div>
+      {paymentOptionsError && <div className="alert alert-danger mt-3" role="alert">Không thể tải phương thức thanh toán: {paymentOptionsError}</div>}
       {orderCreated && <div className="alert alert-info mt-3">
-        Đơn <strong>{orderCreated.id}</strong> đã được tạo thành công. Sản phẩm đã mua được chuyển khỏi giỏ hàng.
+        <p>Đơn <strong>{orderCreated.id}</strong> đã được tạo thành công. Sản phẩm đã mua được chuyển khỏi giỏ hàng.</p>
+        {orderCreated.paymentMethod === 'bank_transfer' && paymentOptions?.bankTransfer && <div className="bank-transfer-instructions">
+          <strong>Thông tin chuyển khoản</strong>
+          <span>Ngân hàng: {paymentOptions.bankTransfer.bankName}</span>
+          <span>Chủ tài khoản: {paymentOptions.bankTransfer.accountName}</span>
+          <span>Số tài khoản: {paymentOptions.bankTransfer.accountNumber}</span>
+          {paymentOptions.bankTransfer.branch && <span>Chi nhánh: {paymentOptions.bankTransfer.branch}</span>}
+          <span className="bank-transfer-content">Nội dung chuyển khoản: <strong>{orderCreated.id}</strong></span>
+          <span>Đơn hàng sẽ được xử lý sau khi cửa hàng xác nhận đã nhận tiền.</span>
+        </div>}
+        {orderCreated.paymentMethod === 'cod' && <span>Bạn thanh toán khi nhận hàng.</span>}
+        {orderCreated.paymentError && <div className="payment-retry">
+          <p>Đơn hàng đã được lưu, nhưng cổng thanh toán chưa khởi tạo được giao dịch: {orderCreated.paymentError}</p>
+          <Button variant="primary" onClick={retryPayment}>Thử thanh toán lại</Button>
+        </div>}
       </div>}
       <div className="text-end">
         <Link className="btn btn-warning text-white" to="/home">Quay lại trang chủ</Link>
@@ -219,6 +306,22 @@ const Cart = () => {
           <Modal.Title>Thông tin khách hàng</Modal.Title>
         </Modal.Header>
         <Modal.Body>
+          <Form.Group className="mb-3" as="fieldset">
+            <Form.Label as="legend">Phương thức thanh toán</Form.Label>
+            {paymentOptionsLoading && <p role="status">Đang tải phương thức thanh toán...</p>}
+            {paymentOptionsError && <p className="text-danger" role="alert">{paymentOptionsError}</p>}
+            {paymentOptions?.methods?.map((method) => <Form.Check
+              key={method.code}
+              type="radio"
+              name="paymentMethod"
+              id={`payment-${method.code}`}
+              label={<span>{method.name}<small className="payment-method-description">{method.enabled ? method.description : method.disabledReason}</small></span>}
+              value={method.code}
+              checked={paymentMethod === method.code}
+              disabled={!method.enabled || submittingOrder}
+              onChange={() => setPaymentMethod(method.code)}
+            />)}
+          </Form.Group>
           <Form>
             <Form.Group className="mb-3" controlId="formName">
               <Form.Label>Họ tên</Form.Label>
@@ -255,11 +358,11 @@ const Cart = () => {
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={handleModalClose}>
+          <Button variant="secondary" onClick={handleModalClose} disabled={submittingOrder}>
             Hủy
           </Button>
-          <Button variant="primary" onClick={handleModalSave}>
-            Xác nhận
+          <Button variant="primary" onClick={handleModalSave} disabled={submittingOrder || paymentOptionsLoading || !paymentOptions || !paymentOptions.methods?.some((method) => method.code === paymentMethod && method.enabled)}>
+            {submittingOrder ? 'Đang xử lý...' : 'Xác nhận'}
           </Button>
         </Modal.Footer>
       </Modal>

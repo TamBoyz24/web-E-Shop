@@ -43,13 +43,18 @@ export function getUser() {
     return readStorage(STORAGE_KEYS.user, readStorage(STORAGE_KEYS.currentUser, null));
 }
 
-export async function createOrder(items, customerInfo) {
+export async function getPaymentOptions() {
+    return apiRequest("/payments/options");
+}
+
+export async function createOrder(items, customerInfo, paymentMethod = "cod") {
     const order = await apiRequest("/orders", {
         method: "POST",
         body: {
             customer: customerInfo.name,
             phone: customerInfo.phone,
             address: customerInfo.address,
+            paymentMethod,
             items: items.map((item) => ({
                 id: String(item.id),
                 name: item.name,
@@ -63,6 +68,13 @@ export async function createOrder(items, customerInfo) {
         user: true,
     });
     return { ...order, databaseId: order.id, id: order.orderNumber };
+}
+
+export async function startOrderPayment(orderId) {
+    return apiRequest(`/orders/${encodeURIComponent(orderId)}/payment`, {
+        method: "POST",
+        user: true,
+    });
 }
 
 export function removeCartItemsForOrder(order) {

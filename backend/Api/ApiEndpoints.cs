@@ -6,7 +6,9 @@ using System.Text;
 using System.Text.Json;
 using backend.Data;
 using backend.Models;
+using backend.Services;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -17,6 +19,8 @@ public static class ApiEndpoints
 {
     private static readonly HashSet<string> OrderStatuses =
         ["pending", "confirmed", "shipping", "completed", "cancelled"];
+    private static readonly HashSet<string> PaymentMethods =
+        ["cod", "bank_transfer", "vnpay", "zalopay"];
 
     public static void MapApiEndpoints(this WebApplication app)
     {
@@ -44,6 +48,32 @@ public static class ApiEndpoints
             .RequireAuthorization(policy => policy.RequireClaim("userId"));
         orders.MapPost("/", CreateOrder)
             .RequireAuthorization(policy => policy.RequireClaim("userId"));
+        orders.MapPost("/{id}/payment", StartOrderPayment)
+            .RequireAuthorization(policy => policy.RequireClaim("userId"))
+            .WithName("StartOrderPayment")
+            .WithSummary("Create a hosted payment session for the authenticated customer's order")
+            .Produces<PaymentCheckoutResponse>()
+            .Produces(StatusCodes.Status403Forbidden)
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status409Conflict)
+            .Produces(StatusCodes.Status502BadGateway);
+
+        var payments = app.MapGroup("/api/payments");
+        payments.MapGet("/options", (IPaymentService paymentService) => Results.Ok(paymentService.GetOptions()))
+            .WithName("GetPaymentOptions")
+            .WithSummary("Return payment methods enabled for checkout")
+            .Produces<PaymentOptionsResponse>();
+        payments.MapGet("/vnpay/return", VnPayReturn)
+            .WithName("VnPayReturn")
+            .WithSummary("Verify VNPay's signed browser return and redirect to the result page");
+        payments.MapGet("/vnpay/ipn", VnPayIpn)
+            .WithName("VnPayIpn")
+            .WithSummary("Verify VNPay's server-to-server payment notification")
+            .Produces<VnPayIpnResponse>();
+        payments.MapPost("/zalopay/callback", ZaloPayCallback)
+            .WithName("ZaloPayCallback")
+            .WithSummary("Verify and acknowledge ZaloPay's signed payment callback")
+            .Produces<ZaloPayCallbackResponse>();
 
         var admin = app.MapGroup("/api/admin").RequireAuthorization();
         admin.MapGet("/products", GetAllProducts);
@@ -65,6 +95,7 @@ public static class ApiEndpoints
         admin.MapGet("/orders/pending-count", GetPendingOrderCount);
         admin.MapPost("/orders/import", ImportLegacyOrders);
         admin.MapPatch("/orders/{id}/status", UpdateOrderStatus);
+        admin.MapPatch("/orders/{id}/payment-status", UpdateOrderPaymentStatus);
         admin.MapDelete("/orders/{id}", DeleteOrder);
         admin.MapGet("/dashboard", GetDashboard);
 
@@ -344,7 +375,16 @@ public static class ApiEndpoints
             return Results.BadRequest(new { message = ValidateProduct(invalidProduct) });
         }
 
-        var products = inputs.Select(ToProduct).ToList();
+        var products = inputs.Select(input =>
+        {
+            var product = ToProduct(input);
+            if (product.Sku.StartsWith("SP-", StringComparison.OrdinalIgnoreCase)
+                && product.Price is > 0 and < 10000)
+            {
+                product.Price *= 1000;
+            }
+            return product;
+        }).ToList();
         await database.Products.InsertManyAsync(products, cancellationToken: cancellationToken);
         return Results.Ok(products);
     }
@@ -839,6 +879,7 @@ public static class ApiEndpoints
         CreateOrderRequest request,
         ClaimsPrincipal principal,
         MongoStoreDatabase database,
+        IPaymentService paymentService,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Customer)
@@ -848,11 +889,37 @@ public static class ApiEndpoints
             || request.Address.Length > 500
             || request.Items is null
             || request.Items.Count is 0 or > 100
+            || !PaymentMethods.Contains(request.PaymentMethod)
             || request.Items.Any(item => string.IsNullOrWhiteSpace(item.Name)
                 || item.Quantity is < 1 or > 100
                 || item.Price < 0))
         {
             return Results.BadRequest(new { message = "Thông tin người nhận hoặc sản phẩm trong đơn hàng không hợp lệ." });
+        }
+
+        if (!paymentService.IsMethodEnabled(request.PaymentMethod))
+        {
+            return Results.Conflict(new { message = "Phương thức thanh toán hiện không khả dụng." });
+        }
+
+        if (request.Items.Any(item => !ObjectId.TryParse(item.Id, out _)))
+        {
+            return Results.BadRequest(new { message = "Một hoặc nhiều sản phẩm trong giỏ hàng không còn hợp lệ. Vui lòng tải lại danh sách sản phẩm." });
+        }
+
+        var productIds = request.Items.Select(item => item.Id).Distinct().ToList();
+        var products = await database.Products
+            .Find(Builders<ProductDocument>.Filter.In(product => product.Id, productIds))
+            .ToListAsync(cancellationToken);
+        var productsById = products.ToDictionary(product => product.Id);
+        if (productsById.Count != productIds.Count
+            || request.Items.Any(item => !productsById.TryGetValue(item.Id, out var product)
+                || product.Status != "active"
+                || product.Stock < request.Items
+                    .Where(candidate => candidate.Id == item.Id)
+                    .Sum(candidate => candidate.Quantity)))
+        {
+            return Results.BadRequest(new { message = "Một hoặc nhiều sản phẩm đã hết hàng hoặc không còn được bán." });
         }
 
         var now = DateTime.UtcNow;
@@ -866,21 +933,101 @@ public static class ApiEndpoints
             Items = request.Items.Select(item => new OrderItemDocument
             {
                 Id = item.Id,
-                Name = item.Name,
-                Price = item.Price,
+                Name = productsById[item.Id].Name,
+                Price = productsById[item.Id].Price,
                 Quantity = item.Quantity,
-                Images = item.Images,
-                Image = item.Image,
+                Images = productsById[item.Id].Images,
+                Image = null,
                 Color = item.Color
             }).ToList(),
             TotalQuantity = request.Items.Sum(item => item.Quantity),
-            Total = request.Items.Sum(item => item.Price * item.Quantity),
+            Total = request.Items.Sum(item => productsById[item.Id].Price * item.Quantity),
+            PaymentMethod = request.PaymentMethod,
+            PaymentStatus = request.PaymentMethod == "cod" ? "unpaid" : "pending",
             CreatedAt = now,
             UpdatedAt = now
         };
 
         await database.Orders.InsertOneAsync(order, cancellationToken: cancellationToken);
         return Results.Created($"/api/admin/orders/{order.Id}", order);
+    }
+
+    private static async Task<IResult> StartOrderPayment(
+        string id,
+        ClaimsPrincipal principal,
+        HttpContext context,
+        MongoStoreDatabase database,
+        IPaymentService paymentService,
+        CancellationToken cancellationToken)
+    {
+        var userId = principal.FindFirstValue("userId");
+        var order = await database.Orders.Find(current => current.Id == id && current.UserId == userId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (order is null)
+        {
+            return Results.NotFound(new { message = "Không tìm thấy đơn hàng." });
+        }
+
+        try
+        {
+            return Results.Ok(await paymentService.CreateCheckoutAsync(
+                order,
+                context.Connection.RemoteIpAddress?.ToString(),
+                cancellationToken));
+        }
+        catch (PaymentUnavailableException exception)
+        {
+            return Results.Conflict(new { message = exception.Message });
+        }
+        catch (PaymentProviderException exception)
+        {
+            return Results.Problem(
+                title: "Không thể khởi tạo thanh toán",
+                detail: exception.Message,
+                statusCode: StatusCodes.Status502BadGateway);
+        }
+    }
+
+    private static async Task<IResult> VnPayReturn(
+        HttpRequest request,
+        IConfiguration configuration,
+        IPaymentService paymentService,
+        CancellationToken cancellationToken)
+    {
+        var result = await paymentService.ProcessVnPayCallbackAsync(request.Query, cancellationToken);
+        var frontendReturnUrl = configuration["Payments:FrontendReturnUrl"];
+        if (!Uri.TryCreate(frontendReturnUrl, UriKind.Absolute, out _))
+        {
+            return Results.Problem(
+                title: "Chưa cấu hình trang kết quả thanh toán",
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+
+        var returnUrl = QueryHelpers.AddQueryString(frontendReturnUrl, new Dictionary<string, string?>
+        {
+            ["status"] = result.Status,
+            ["orderNumber"] = result.OrderNumber,
+            ["paymentMethod"] = "vnpay"
+        });
+        return Results.Redirect(returnUrl);
+    }
+
+    private static async Task<IResult> VnPayIpn(
+        HttpRequest request,
+        IPaymentService paymentService,
+        CancellationToken cancellationToken)
+    {
+        var result = await paymentService.ProcessVnPayCallbackAsync(request.Query, cancellationToken);
+        return Results.Ok(new VnPayIpnResponse(result.RspCode, result.Message));
+    }
+
+    private static async Task<IResult> ZaloPayCallback(
+        ZaloPayCallbackRequest callback,
+        IPaymentService paymentService,
+        CancellationToken cancellationToken)
+    {
+        var result = await paymentService.ProcessZaloPayCallbackAsync(callback, cancellationToken);
+        return Results.Ok(result);
     }
 
     private static async Task<IResult> GetCurrentUserOrders(
@@ -904,11 +1051,14 @@ public static class ApiEndpoints
             order.Id,
             order.OrderNumber,
             order.Status,
+            order.PaymentMethod,
+            order.PaymentStatus,
             order.Total,
             order.TotalQuantity,
             order.CreatedAt,
             items = order.Items.Select(item => new
             {
+                item.Id,
                 item.Name,
                 item.Quantity
             })
@@ -1022,6 +1172,13 @@ public static class ApiEndpoints
             return Results.Ok(existingOrder);
         }
 
+        if (request.Status == "completed"
+            && existingOrder.PaymentMethod != "cod"
+            && existingOrder.PaymentStatus != "paid")
+        {
+            return Results.Conflict(new { message = "Chỉ có thể hoàn tất đơn khi đã xác nhận thanh toán." });
+        }
+
         var update = Builders<OrderDocument>.Update
             .Set(order => order.Status, request.Status)
             .Set(order => order.UpdatedAt, DateTime.UtcNow)
@@ -1033,9 +1190,49 @@ public static class ApiEndpoints
                 AdminName = GetAdminActorName(principal),
                 AdminRole = GetAdminActorRole(principal)
             });
+        if (request.Status == "completed" && existingOrder.PaymentMethod == "cod")
+        {
+            update = update.Set(order => order.PaymentStatus, "paid");
+        }
         var order = await database.Orders.FindOneAndUpdateAsync(
             currentOrder => currentOrder.Id == id,
             update,
+            new FindOneAndUpdateOptions<OrderDocument> { ReturnDocument = ReturnDocument.After },
+            cancellationToken: cancellationToken);
+        return order is null ? Results.NotFound() : Results.Ok(order);
+    }
+
+    private static async Task<IResult> UpdateOrderPaymentStatus(
+        string id,
+        OrderPaymentStatusRequest request,
+        MongoStoreDatabase database,
+        CancellationToken cancellationToken)
+    {
+        if (request.Status != "paid" && request.Status != "failed")
+        {
+            return Results.BadRequest(new { message = "Trạng thái thanh toán không hợp lệ." });
+        }
+
+        var existingOrder = await database.Orders.Find(order => order.Id == id)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (existingOrder is null)
+        {
+            return Results.NotFound();
+        }
+        if (existingOrder.PaymentMethod != "bank_transfer")
+        {
+            return Results.Conflict(new { message = "Chỉ có thể cập nhật thủ công trạng thái chuyển khoản." });
+        }
+        if (existingOrder.PaymentStatus == "paid" && request.Status != "paid")
+        {
+            return Results.Conflict(new { message = "Không thể đổi trạng thái của giao dịch đã thanh toán." });
+        }
+
+        var order = await database.Orders.FindOneAndUpdateAsync(
+            current => current.Id == id,
+            Builders<OrderDocument>.Update
+                .Set(current => current.PaymentStatus, request.Status)
+                .Set(current => current.UpdatedAt, DateTime.UtcNow),
             new FindOneAndUpdateOptions<OrderDocument> { ReturnDocument = ReturnDocument.After },
             cancellationToken: cancellationToken);
         return order is null ? Results.NotFound() : Results.Ok(order);

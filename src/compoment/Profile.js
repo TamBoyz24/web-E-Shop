@@ -10,6 +10,18 @@ const ORDER_STATUSES = {
   completed: { label: "Đã giao", className: "success" },
   cancelled: { label: "Đã hủy", className: "danger" },
 };
+const PAYMENT_METHODS = {
+  cod: "Thanh toán khi nhận hàng",
+  bank_transfer: "Chuyển khoản",
+  vnpay: "VNPay",
+  zalopay: "ZaloPay",
+};
+const PAYMENT_STATUSES = {
+  unpaid: "Chưa thu",
+  pending: "Chờ thanh toán",
+  paid: "Đã thanh toán",
+  failed: "Thanh toán lỗi",
+};
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -227,6 +239,7 @@ const Profile = () => {
                         <span className={`badge ${status.className}`}>
                           {status.label}
                         </span>
+                        <small>{PAYMENT_METHODS[order.paymentMethod] || "Thanh toán khi nhận hàng"} · {PAYMENT_STATUSES[order.paymentStatus] || PAYMENT_STATUSES.unpaid}</small>
                       </div>
                       <strong>{Number(order.total || 0).toLocaleString("vi-VN")}đ</strong>
                     </div>
